@@ -103,6 +103,50 @@ Maria
   - Comments 
   - she enjoy her dinner.
 
+updated from Martin
+
+Interaction Flow (cook the meal from the saved recipe):
+Maria logs in
+Website shows her the general menu, option to upload the image, her top recipes, friends tab, and saved recipes tab
+Maria clicks on saved recipes
+Website shows her a page with all her saved recipes
+Maria clicks on one of the recipe
+Website shows her the recipe
+Maria cooks the recipe and when she is done she clicks "I made it"
+Website brings her back to her home page
+Maria logs out
+Interaction Flow (Maria wants to see what her mom is making today):
+Maria logs in
+Website shows her the general menu, option to upload the image, her top recipes, friends tab, and saved recipes tab
+Maria clicks on "Friends"
+Website shows her a page where she can Add a Friend and see her friends
+Maria clicks on "My Friends"
+Website shows her a page where she can see all her friends
+Maria searches for a friend and clicks on their profile to see what they are cooking today
+Website shows Natalie's friend page where is also a section "Last cooked recipes"
+Maria clicks on one of the recipes
+Website shows her the recipe
+Maria follows the instructions to cook the meal and when Natalie is done she clicks on "I made it"
+Website brings Maria to her home page
+Maria logs out
+Interaction Flow (Maria wants to change her password):
+Maria logs in
+Website shows her the general menu, option to upload the image, her top recipes, friends tab, and saved recipes tab
+Maria hover our "Account" and from the dropdown menu she clicks on "Settings"
+Website shows her a page with all the possible settings options
+Maria scrolls down to the "Change Password" section, she enters her current password, new password, and confirms her new password. She clicks "Save changes"
+Website gives her confirmation that the password was updated
+Maria logs out of the website
+Interaction Flow (Maria is looking for some inspiration to cook a meal using pork):
+Maria logs in
+Website shows her the general menu, option to upload the image, her top recipes, friends tab, and saved recipes tab
+Maria hovers over "Ingredients" and from the dropdown menu she clicks on "Pork"
+Website shows her a page where she can see all the recipes using pork meet
+Maria scrolls through the recipes and when she sees one she likes she clicks on the recipe
+Website shows her the recipe
+Maria cooks the recipe and when she is done she clicks "I made it"
+Website brings her back to her home page
+Maria logs out
 
 
 
