@@ -42,7 +42,51 @@ of his monthly costs, so he's really interested in a software that can help keep
 - Sven is at the page where he can upload a image of his food from the fridge.
 ## **Post Condition:**
 - Sven was recommended 3 different recipes based on his image.
+  **Interaction Flow (cook the meal from the saved recipe):**
+- Sven logs in
+- Sven shows her the general menu, option to upload the image, her top recipes, friends tab, and saved recipes tab
+- Sven clicks on saved recipes
+- Website shows her a page with all her saved recipes
+- Natalie clicks on one of the recipe
+- Website shows her the recipe
+- Natalie cooks the recipe and when she is done she clicks "I made it"
+- Website brings her back to her home page
+- Natalie logs out
 
+## **Interaction Flow (Natalie wants to see what her friend is making today):**
+- Natalie logs in
+- Website shows her the general menu, option to upload the image, her top recipes, friends tab, and saved recipes tab
+- Natalie clicks on "Friends"
+- Website shows her a page where she can Add a Friend and see her friends
+- Natalie clicks on "My Friends"
+- Website shows her a page where she can see all her friends
+- Natalie searches for a friend and clicks on their profile to see what they are cooking today
+- Website shows Natalie's friend page where is also a section "Last cooked recipes"
+- Natalie clicks on one of the recipes
+- Website shows her the recipe
+- Natalie follows the instructions to cook the meal and when Natalie is done she clicks on "I made it"
+- Website brings Natalie to her home page
+- Natalie logs out
+
+## **Interaction Flow (Natalie wants to change her password):**
+- Natalie logs in
+- Website shows her the general menu, option to upload the image, her top recipes, friends tab, and saved recipes tab
+- Natalie hover our "Account" and from the dropdown menu she clicks on "Settings"
+- Website shows her a page with all the possible settings options
+- Natalie scrolls down to the "Change Password" section, she enters her current password, new password, and confirms her new password. She clicks "Save changes"
+- Website gives her confirmation that the password was updated
+- Natalie logs out of the website
+
+## **Interaction Flow (Natalie is looking for some inspiration to cook a meal using pork):**
+- Natalie logs in
+- Website shows her the general menu, option to upload the image, her top recipes, friends tab, and saved recipes tab
+- Natalie hovers over "Ingredients" and from the dropdown menu she clicks on "Pork"
+- Website shows her a page where she can see all the recipes using pork meet
+- Natalie scrolls through the recipes and when she sees one she likes she clicks on the recipe
+- Website shows her the recipe
+- Natalie cooks the recipe and when she is done she clicks "I made it"
+- Website brings her back to her home page
+- Natalie logs out
 
 
 
