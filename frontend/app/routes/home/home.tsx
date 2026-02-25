@@ -2,7 +2,7 @@ import type { Route } from "../+types/home"
 import { FileInput, Label } from "flowbite-react";
 import {RecipeCard} from "~/components/recipeCard";
 
-type Recipe = { image: string, name: string }
+type Recipe = { image: string, name: string, stars: number }
 
 export function meta({}: Route.MetaArgs) {
   return [
@@ -13,14 +13,14 @@ export function meta({}: Route.MetaArgs) {
 
 export default function Home() {
     const allRecipes: Recipe[] = [
-        {image: "/image400.png", name: "Recipe name this recipe is amazing"},
-        {image: "/image400.png", name: "Recipe name this recipe is amazing"},
-        {image: "/image400.png", name: "Recipe name this recipe is amazing"},
-        {image: "/image400.png", name: "Recipe name this recipe is amazing"},
-        {image: "/image400.png", name: "Recipe name this recipe is amazing"},
-        {image: "/image400.png", name: "Recipe name this recipe is amazing"},
-        {image: "/image400.png", name: "Recipe name this recipe is amazing"},
-        {image: "/image400.png", name: "Recipe name this recipe is amazing"},
+        {image: "/image400.png", name: "Recipe name this recipe is amazing", stars: 4},
+        {image: "/image400.png", name: "Recipe name this recipe is amazing", stars: 3},
+        {image: "/image400.png", name: "Recipe name this recipe is amazing", stars: 5},
+        {image: "/image400.png", name: "Recipe name this recipe is amazing", stars: 1},
+        {image: "/image400.png", name: "Recipe name this recipe is amazing", stars: 5},
+        {image: "/image400.png", name: "Recipe name this recipe is amazing", stars: 5},
+        {image: "/image400.png", name: "Recipe name this recipe is amazing", stars: 5},
+        {image: "/image400.png", name: "Recipe name this recipe is amazing", stars: 5},
     ]
 
     const recipes = allRecipes.slice(0, 8)
