@@ -11,7 +11,7 @@ export function Navigation() {
                 <NavbarLink href="/recipe">Recipes</NavbarLink>
                 <NavbarLink href="/meals">Meals</NavbarLink>
                 <NavbarLink href="/login">Login/New Account</NavbarLink>
-                <NavbarLink href="#">Friends</NavbarLink>
+                <NavbarLink href="/friends">Friends</NavbarLink>
                 <NavbarLink href="#">Saved Recipes</NavbarLink>
                 <NavbarLink href="#">My Account</NavbarLink>
             </NavbarCollapse>

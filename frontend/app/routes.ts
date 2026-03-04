@@ -5,11 +5,8 @@ export default [
     index("routes/home/home.tsx"),
     route("/recipe", "routes/recipe/recipe.tsx"),
     route('/meals','routes/meals/meals.tsx'),
-<<<<<<< HEAD
-    route('/login', 'routes/login-newaccount/login.tsx')
-=======
-    route("friends", "routes/friends/friends.tsx"),
->>>>>>> friends
+    route('/login', 'routes/login-newaccount/login.tsx'),
+    route('/friends', 'routes/friends/friends.tsx'),
     ])
 ] satisfies RouteConfig
 
