@@ -10,6 +10,7 @@ export function Navigation() {
             <NavbarCollapse>
                 <NavbarLink href="/recipe">Recipes</NavbarLink>
                 <NavbarLink href="/meals">Meals</NavbarLink>
+                <NavbarLink href="/loginNewacc">Login/New Account</NavbarLink>
             </NavbarCollapse>
         </Navbar>
     );
