@@ -1,4 +1,13 @@
-import { Navbar, NavbarBrand, NavbarCollapse, NavbarLink, NavbarToggle } from "flowbite-react";
+import {
+    Dropdown,
+    MegaMenu,
+    MegaMenuDropdown,
+    Navbar,
+    NavbarBrand,
+    NavbarCollapse,
+    NavbarLink,
+    NavbarToggle
+} from "flowbite-react";
 
 export function Navigation() {
     return (
@@ -13,7 +22,26 @@ export function Navigation() {
                 <NavbarLink href="/login">Login/New Account</NavbarLink>
                 <NavbarLink href="/friends">Friends</NavbarLink>
                 <NavbarLink href="#">Saved Recipes</NavbarLink>
-                <NavbarLink href="#">My Account</NavbarLink>
+                <Dropdown arrowIcon={true}
+                          inline
+                          label={
+                              'My Account'
+                          }>
+                    <ul className="grid grid-cols-1">
+                        <div className="space-y-4 p-4">
+                            <li>
+                                <a href='/accountset' className="hover:text-primary-600 dark:hover:text-primary-500">
+                                    Settings
+                                </a>
+                            </li>
+                            <li>
+                                <a href="#" className="hover:text-primary-600 dark:hover:text-primary-500">
+                                    Logout
+                                </a>
+                            </li>
+                        </div>
+                    </ul>
+                </Dropdown>
             </NavbarCollapse>
         </Navbar>
     );

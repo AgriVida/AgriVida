@@ -1,5 +1,4 @@
 import type { Route } from "../+types/home"
-// import { FileInput, Label } from "flowbite-react";
 
 export function meta({}: Route.MetaArgs) {
     return [
