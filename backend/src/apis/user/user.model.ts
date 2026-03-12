@@ -14,7 +14,8 @@ export const PrivateUserSchema = z.object({
         .max(512, 'please provide a valid bio (max 512 characters)' )
         .trim()
         .nullable(),
-   createdAt: z.iso.datetime('please provide a valid date'),
+   createdAt: z.iso.datetime('please provide a valid date')
+       .nullable(),
     email: z
         .email('please provide a valid email')
         .max(128, 'please provide a valid email (max 128 characters)'),
