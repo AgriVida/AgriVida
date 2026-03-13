@@ -25,6 +25,9 @@ services:
     env_file:
       - project.env
     user: 'node'
+    depends_on:
+      - redis
+      - sql
     volumes:
       - ./backend/src:/home/node/app/src
 #    healthcheck:

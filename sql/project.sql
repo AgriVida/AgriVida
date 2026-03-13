@@ -1,7 +1,7 @@
-drop table review;
-drop table friend;
-drop table recipe;
-drop table "user";
+drop table if exists review;
+drop table if exists friend;
+drop table if exists recipe;
+drop table if exists "user";
 
 create table if not exists "user"
 (
