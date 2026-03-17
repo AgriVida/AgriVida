@@ -1,7 +1,14 @@
 import { App } from './App'
 import {createClient} from "redis";
 import type {RedisClientType} from "redis";
-
+import type {PublicUser} from "./apis/user/user.model.ts";
+declare module 'express-session' {
+    export interface SessionData {
+        user: PublicUser|undefined
+        signature: string|undefined
+        jwt: string|undefined
+    }
+}
 // instantiate new app and pass it a port as an argument to start with (4200)
 let redisClient : RedisClientType | undefined
 
