@@ -6,7 +6,7 @@ drop table if exists "user";
 create table if not exists "user"
 (
     id uuid not null primary key,
-    activation_token char(32) not null,
+    activation_token char(32),
     avatar_url varchar(256),
     bio varchar(256),
     created_at timestamptz,
