@@ -1,6 +1,6 @@
 import { Router } from 'express'
 import {
-    getRecipeByIdController,
+    getRecipeByIdController, getRecipesByUserIdController,
     postRecipeController,
 
 } from './recipe.controller.ts'
@@ -14,6 +14,9 @@ router.route('/')
 
 router.route('/:id')
     .get(getRecipeByIdController)
+
+router.route('/userId/:userId')
+    .get(getRecipesByUserIdController)
 
 export const recipeRoute = { basePath, router }
 

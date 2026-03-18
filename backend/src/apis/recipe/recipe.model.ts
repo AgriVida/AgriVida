@@ -71,3 +71,20 @@ export async function selectRecipeById(id: string): Promise<Recipe | null> {
     const result = recipeSchema.array().max(1).parse(parsedRows)
     return result[0] ?? null
 }
+
+export async function selectRecipesByUserId(userId: string): Promise<Recipe[]> {
+    const rowList = await sql`SELECT id, user_id, calories, carbs, cook_time, fat_content, image_url, instructions, ingredients, prep_time, protein, servings, title, total_time
+        FROM recipe
+        WHERE user_id = ${userId}`
+
+    // Parse JSONB columns from database (postgres library returns them as objects)
+    const parsedRows = rowList.map((row: any) => ({
+        ...row,
+        instructions: JSON.parse(row.instructions),
+        ingredients: JSON.parse(row.ingredients)
+    }))
+
+    // Enforce that the result is an array of one recipe, or null
+    return recipeSchema.array().parse(parsedRows)
+
+}
