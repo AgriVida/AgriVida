@@ -35,11 +35,11 @@ export const recipeSchema = z.object({
         .max(255, 'image url cannot exceed 255 characters')
         .trim()
         .nullable(),
-    instructions: z.json('please provide valid instructions'),
+    instructions: instructionsArraySchema,
     ingredients: ingredientsArraySchema,
     prepTime: z.string('please provide valid prep time'),
     protein: z.string('please provide valid content'),
-    servings: z.string('please provide valid servings'),
+    servings: z.int('please provide valid servings'),
     title: z.string('please provide valid title'),
     totalTime: z.string('please provide valid total time'),
 })
@@ -50,6 +50,18 @@ export async function insertRecipe(recipe: Recipe): Promise<string> {
 
     await sql`INSERT INTO recipe (id, user_id, calories, carbs, cook_time, fat_content, image_url, instructions, ingredients, prep_time, protein, servings, title, total_time)
     VALUES (${recipe.id}, ${recipe.userId}, ${recipe.calories}, ${recipe.carbs},
-     ${recipe.cookTime}, ${recipe.fatContent}, ${recipe.imageUrl}, ${recipe.instructions}, ${recipe.ingredients}, ${recipe.prepTime}, ${recipe.protein}, ${recipe.servings}, ${recipe.title}, ${recipe.totalTime})`
+     ${recipe.cookTime}, ${recipe.fatContent}, ${recipe.imageUrl}, ${JSON.stringify(recipe.instructions)}, ${JSON.stringify(recipe.ingredients)}, ${recipe.prepTime}, ${recipe.protein}, ${recipe.servings}, ${recipe.title}, ${recipe.totalTime})`
     return 'recipe successfully created'
 }
+
+
+// /**
+//  * select all recipes by a specific user ID
+//  * @param recipeId the id of the recipe to select
+//  * @returns array of recipe
+//  */
+
+// export async function selectRecipeByUserId(userId: string): Promise<Recipe[]> {
+//     const rowlist = await sql`
+// SELECT id, user_id, calories, carbs, cookTime, fatContent, imagenUrl, Instructions, ingredients, prepTime, protein, servings, title, totalTime, `
+// }

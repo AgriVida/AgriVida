@@ -38,7 +38,7 @@ create table if not exists recipe
     ingredients jsonb,
     prep_time varchar(32),
     protein varchar(16),
-    servings varchar(16),
+    servings smallserial,
     title varchar(32),
     total_time varchar(16)
 );
