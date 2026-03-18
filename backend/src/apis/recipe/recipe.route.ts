@@ -1,5 +1,6 @@
 import { Router } from 'express'
 import {
+    getRecipeByIdController,
     postRecipeController,
 
 } from './recipe.controller.ts'
@@ -10,6 +11,9 @@ const router = Router ()
 
 router.route('/')
     .post(isLoggedInController, postRecipeController)
+
+router.route('/:id')
+    .get(getRecipeByIdController)
 
 export const recipeRoute = { basePath, router }
 

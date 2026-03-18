@@ -3,7 +3,7 @@ import type { Request, Response } from 'express'
 import {
     type Recipe,
     insertRecipe,
-    recipeSchema
+    recipeSchema, selectRecipeById
 } from './recipe.model.ts'
 import {serverErrorResponse, zodErrorResponse} from "../../utils/response.utils.ts";
 import type {Status} from "../../utils/interfaces/Status.ts";
@@ -38,12 +38,23 @@ export async function postRecipeController(request: Request, response: Response)
        serverErrorResponse(response, error.message)
    }
    }
-   // export async function getRecipeByRecipeIdcontroller(request: Request, response: Response): Promise<void> {
-   //     try {
-   //         const validationResult = RecipeSchema.pick({ id:true}).safeParse({ id: request.params.RecipeId })
-   //         if (!validationResult.success) {
-   //             return
-   //         }
-   //         const { id}
+
+   export async function getRecipeByIdController(request: Request, response: Response): Promise<void> {
+       try {
+           const validationResult = recipeSchema.pick({id: true}).safeParse({id: request.params.id})
+           if (!validationResult.success) {
+               return
+           }
+           const {id} = validationResult.data
+
+           // get the recipe
+           const recipe: Recipe | null = await selectRecipeById(id)
+
+           response.json({status: 200, message: null, data: recipe})
+       } catch (error: any) {
+           console.error(error)
+           serverErrorResponse(response, error.message)
+       }
+   }
 
 

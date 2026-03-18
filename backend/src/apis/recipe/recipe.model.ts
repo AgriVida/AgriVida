@@ -54,14 +54,20 @@ export async function insertRecipe(recipe: Recipe): Promise<string> {
     return 'recipe successfully created'
 }
 
-
-// /**
-//  * select all recipes by a specific user ID
-//  * @param recipeId the id of the recipe to select
-//  * @returns array of recipe
-//  */
-
-// export async function selectRecipeByUserId(userId: string): Promise<Recipe[]> {
-//     const rowlist = await sql`
-// SELECT id, user_id, calories, carbs, cookTime, fatContent, imagenUrl, Instructions, ingredients, prepTime, protein, servings, title, totalTime, `
-// }
+export async function selectRecipeById(id: string): Promise<Recipe | null> {
+    const rowList = await sql`
+        SELECT id, user_id, calories, carbs, cook_time, fat_content, image_url, instructions, ingredients, prep_time, protein, servings, title, total_time
+        FROM recipe
+        WHERE id = ${id}`
+    
+    // Parse JSONB columns from database (postgres library returns them as objects)
+    const parsedRows = rowList.map((row: any) => ({
+        ...row,
+        instructions: JSON.parse(row.instructions),
+        ingredients: JSON.parse(row.ingredients)
+    }))
+    
+    // Enforce that the result is an array of one recipe, or null
+    const result = recipeSchema.array().max(1).parse(parsedRows)
+    return result[0] ?? null
+}
