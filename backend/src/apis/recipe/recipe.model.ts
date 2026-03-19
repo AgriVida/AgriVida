@@ -30,6 +30,7 @@ export const recipeSchema = z.object({
     calories: z.string('please provide valid content'),
     carbs: z.string('please provide valid content'),
     cookTime: z.string('please provide valid content'),
+    cuisine: z.string('please provide valid content'),
     fatContent: z.string('please provide valid content'),
     imageUrl: z.url('please provide a valid image url')
         .max(255, 'image url cannot exceed 255 characters')
@@ -37,6 +38,7 @@ export const recipeSchema = z.object({
         .nullable(),
     instructions: instructionsArraySchema,
     ingredients: ingredientsArraySchema,
+    mealCategory: z.string('please provide a valid meal Category'),
     prepTime: z.string('please provide valid prep time'),
     protein: z.string('please provide valid content'),
     servings: z.int('please provide valid servings'),
@@ -48,15 +50,15 @@ export async function insertRecipe(recipe: Recipe): Promise<string> {
     // Validate the recipe object against the RecipeSchema
     recipeSchema.parse(recipe)
 
-    await sql`INSERT INTO recipe (id, user_id, calories, carbs, cook_time, fat_content, image_url, instructions, ingredients, prep_time, protein, servings, title, total_time)
+    await sql`INSERT INTO recipe (id, user_id, calories, carbs, cook_time, cuisine, fat_content, image_url, instructions, ingredients, meal_category, prep_time, protein, servings, title, total_time)
     VALUES (${recipe.id}, ${recipe.userId}, ${recipe.calories}, ${recipe.carbs},
-     ${recipe.cookTime}, ${recipe.fatContent}, ${recipe.imageUrl}, ${JSON.stringify(recipe.instructions)}, ${JSON.stringify(recipe.ingredients)}, ${recipe.prepTime}, ${recipe.protein}, ${recipe.servings}, ${recipe.title}, ${recipe.totalTime})`
+     ${recipe.cookTime}, ${recipe.cuisine}, ${recipe.fatContent}, ${recipe.imageUrl}, ${JSON.stringify(recipe.instructions)}, ${JSON.stringify(recipe.ingredients)}, ${recipe.mealCategory}, ${recipe.prepTime}, ${recipe.protein}, ${recipe.servings}, ${recipe.title}, ${recipe.totalTime})`
     return 'recipe successfully created'
 }
 
 export async function selectRecipeById(id: string): Promise<Recipe | null> {
     const rowList = await sql`
-        SELECT id, user_id, calories, carbs, cook_time, fat_content, image_url, instructions, ingredients, prep_time, protein, servings, title, total_time
+        SELECT id, user_id, calories, carbs, cook_time, cuisine, fat_content, image_url, instructions, ingredients, meal_category, prep_time, protein, servings, title, total_time
         FROM recipe
         WHERE id = ${id}`
     
@@ -72,8 +74,26 @@ export async function selectRecipeById(id: string): Promise<Recipe | null> {
     return result[0] ?? null
 }
 
+export async function selectRecipeByCuisineAndMealCategory(cuisine: string, mealCategory: string): Promise<Recipe[]> {
+    console.log(cuisine, mealCategory)
+    const rowList = await sql`
+        SELECT id, user_id, calories, carbs, cook_time, cuisine, fat_content, image_url, instructions, ingredients, meal_category, prep_time, protein, servings, title, total_time
+        FROM recipe
+        WHERE LOWER(cuisine) = LOWER(${cuisine}) AND LOWER(meal_category) = LOWER(${mealCategory})`
+
+    // Parse JSONB columns from database (postgres library returns them as objects)
+    const parsedRows = rowList.map((row: any) => ({
+        ...row,
+        instructions: JSON.parse(row.instructions),
+        ingredients: JSON.parse(row.ingredients)
+    }))
+
+    // Enforce that the result is an array of one recipe, or null
+    return recipeSchema.array().parse(parsedRows)
+}
+
 export async function selectRecipesByUserId(userId: string): Promise<Recipe[]> {
-    const rowList = await sql`SELECT id, user_id, calories, carbs, cook_time, fat_content, image_url, instructions, ingredients, prep_time, protein, servings, title, total_time
+    const rowList = await sql`SELECT id, user_id, calories, carbs, cook_time, cuisine, fat_content, image_url, instructions, ingredients, meal_category, prep_time, protein, servings, title, total_time
         FROM recipe
         WHERE user_id = ${userId}`
 

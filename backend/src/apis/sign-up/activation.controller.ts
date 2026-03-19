@@ -48,3 +48,4 @@ export async function activationController(request: Request, response: Response,
         response.json({status: 500, data: null, message: 'internal server error try again later'})
         }
     }
+

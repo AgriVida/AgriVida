@@ -1,12 +1,13 @@
-import type { Request, Response } from 'express'
+import {type Request, response, type Response} from 'express'
 
 import {
     type Recipe,
     insertRecipe,
-    recipeSchema, selectRecipeById, selectRecipesByUserId
+    recipeSchema, selectRecipeById, selectRecipesByUserId, selectRecipeByCuisineAndMealCategory
 } from './recipe.model.ts'
 import {serverErrorResponse, zodErrorResponse} from "../../utils/response.utils.ts";
 import type {Status} from "../../utils/interfaces/Status.ts";
+import {request} from "node:http";
 
 
 export async function postRecipeController(request: Request, response: Response): Promise<void> {
@@ -67,6 +68,25 @@ export async function getRecipesByUserIdController(request: Request, response: R
 
         // get the recipe
         const recipes: Recipe[] = await selectRecipesByUserId(userId)
+
+        response.json({status: 200, message: null, data: recipes})
+    } catch (error: any) {
+        console.error(error)
+        serverErrorResponse(response, error.message)
+    }
+}
+
+export async function getRecipeByCuisineController(request: Request, response: Response): Promise<void> {
+        try {
+        const validationResult = recipeSchema.pick({cuisine: true, mealCategory: true}).safeParse({cuisine: request.params.cuisine, mealCategory: request.params.mealCategory})
+            if (!validationResult.success) {
+                console.log(validationResult)
+            return
+        }
+        const {cuisine, mealCategory} = validationResult.data
+
+        // get the recipe
+        const recipes: Recipe[] = await selectRecipeByCuisineAndMealCategory(cuisine, mealCategory)
 
         response.json({status: 200, message: null, data: recipes})
     } catch (error: any) {
