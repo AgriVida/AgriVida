@@ -52,7 +52,7 @@ export async function insertRecipe(recipe: Recipe): Promise<string> {
 
     await sql`INSERT INTO recipe (id, user_id, calories, carbs, cook_time, cuisine, fat_content, image_url, instructions, ingredients, meal_category, prep_time, protein, servings, title, total_time)
     VALUES (${recipe.id}, ${recipe.userId}, ${recipe.calories}, ${recipe.carbs},
-     ${recipe.cookTime}, ${recipe.cuisine}, ${recipe.fatContent}, ${recipe.imageUrl}, ${JSON.stringify(recipe.instructions)}, ${JSON.stringify(recipe.ingredients)}, ${recipe.mealCategory}, ${recipe.prepTime}, ${recipe.protein}, ${recipe.servings}, ${recipe.title}, ${recipe.totalTime})`
+     ${recipe.cookTime}, ${recipe.cuisine}, ${recipe.fatContent}, ${recipe.imageUrl}, ${sql.json(recipe.instructions)}, ${sql.json(recipe.ingredients)}, ${recipe.mealCategory}, ${recipe.prepTime}, ${recipe.protein}, ${recipe.servings}, ${recipe.title}, ${recipe.totalTime})`
     return 'recipe successfully created'
 }
 
@@ -111,24 +111,17 @@ export async function selectRecipesByUserId(userId: string): Promise<Recipe[]> {
 
 
 export async function selectRecipesByIngredient(ingredient: string): Promise<Recipe[]> {
+    console.log(ingredient)
+    const searchBy = [{name: ingredient}]
     const rowList = await sql`SELECT id, user_id, calories, carbs, cook_time, cuisine, fat_content, image_url, instructions, ingredients, meal_category, prep_time, protein, servings, title, total_time
         FROM recipe
-        
+        WHERE ingredients @> ${sql.json(searchBy)}
+        `
+       console.log('imadeithere')
 
-    WHERE EXISTS (
-        SELECT 1
-    FROM jsonb_array_elements(ingredients) AS elem
-    WHERE elem->>'name' = ${ingredient}
-)`
+// Parse JSONB columns from database (postgres library returns them as objects)
 
-    // Parse JSONB columns from database (postgres library returns them as objects)
-    const parsedRows = rowList.map((row: any) => ({
-        ...row,
-        instructions: JSON.parse(row.instructions),
-        ingredients: JSON.parse(row.ingredients)
-    }))
 
-    // Enforce that the result is an array of recipes
-    return recipeSchema.array().parse(parsedRows)
-
-}
+    // Enforce that the result is an array of one recipe, or null
+    return recipeSchema.array().parse(rowList)
+    }

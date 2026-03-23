@@ -40,7 +40,7 @@ create table if not exists recipe
     meal_category varchar(32),
     prep_time varchar(32),
     protein varchar(16),
-    servings smallserial,
+    servings smallint,
     title varchar(32),
     total_time varchar(16)
 );
