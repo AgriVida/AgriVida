@@ -42,7 +42,8 @@ create table if not exists recipe
     protein varchar(16),
     servings smallserial,
     title varchar(32),
-    total_time varchar(1
+    total_time varchar(16)
+);
 create index on recipe(user_id);
 
 create table if not exists review
