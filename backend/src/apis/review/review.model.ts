@@ -15,7 +15,8 @@ export const ReviewSchema = z.object({
     recipeId: z.uuidv7('please provide a recipe Id'),
     userId: z.uuidv7('please provide a user id'),
     body: z.string('Please provide a review'),
-    createdAt: z.date('please provide a review date'),
+    createdAt: z.date('please provide a review date')
+        .nullable(),
     rating: z.number('please provide a review rating number'),
 })
 /**
@@ -36,19 +37,46 @@ export async function insertReview(review: Review): Promise<string> {
     ReviewSchema.parse(review)
 
     await sql`
-         INSERT INTO reviews (recipe_id,user_id, body, created_at, rating) 
-         VALUES (${review.recipeId}, ${review.userId}, ${review.body}, ${review.rating})`
+         INSERT INTO review (recipe_id,user_id, body, created_at, rating) 
+         VALUES (${review.recipeId}, ${review.userId}, ${review.body}, now(), ${review.rating})`
 
     return 'review successfully created'
 }
 
-// export async function selectReviewByReplyUserId(replyUserId: string): Promise<Review[]> {
-//     return ReviewSchema.array().parse(rowlist)
-// }
+export async function selectReviewByRecipeId(recipeId:string): Promise<Review[]> {
+    const rowList = await sql`
+SELECT recipe_id, user_id, body, created_at, rating
+FROM review 
+WHERE recipe_id = ${recipeId}
+       `
+    // Enforce that the result is an array of one review, or null
+    return ReviewSchema.array().parse(rowList)
+
+}
+
+export async function selectReviewByPrimaryKey(recipeId:string, userId:string): Promise<Review | null> {
+    const rowList = await sql`
+SELECT recipe_id, user_id, body, created_at, rating
+FROM review 
+WHERE recipe_id = ${recipeId} AND user_id = ${userId}
+       `
+    // Enforce that the result is an array of one review, or null
+    const result = ReviewSchema.array().max(1).parse(rowList)
+    return result[0] ?? null
+
+}
 
 /** select recent reviews from profiles that the given profile is following
 // * Select recent reviews from profiles that the given profile is following
 // * @param UserId the id of the profile whose following list to check
 // * @param limit the maximum number of threads to return (default 50)
-// * @returns array of reviews
+// * @returns array of review
 // */
+
+export async function deleteReview(recipeId:string, userId:string): Promise<string> {
+    const rowList = await sql`
+DELETE FROM review
+WHERE recipe_id = ${recipeId} AND user_id = ${userId}
+`
+    return 'review successfully deleted'
+}

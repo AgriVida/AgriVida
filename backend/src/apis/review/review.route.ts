@@ -1,7 +1,10 @@
 import {Router} from 'express'
 import {
     postReviewController,
-    } from './review.controller.ts'
+    // deleteReviewController,
+    getReviewByRecipeIdController, getReviewByPrimaryKeyController, deleteReviewController,
+
+} from './review.controller.ts'
 
 import { isLoggedInController} from "../../utils/controllers/is-logged-in.controller.ts"
 
@@ -17,15 +20,18 @@ router.route('/')
 .post(isLoggedInController, postReviewController)
 
 /**
- * GET /apis/review/:threadId
+ * GET /apis/review/:recipeId-userId
  * Get a specific review by its ID
  *
- * DELETE /apis/review/:reviewId
+ * DELETE /apis/review/:recipeId-userId
  * Delete a thread by its ID (requires authentication and ownership)
  */
-router.route('/:recipeId/:userId')
+router.route('/recipeId-userId/:recipeId/:userId')
     .get(getReviewByPrimaryKeyController)
     .delete(isLoggedInController, deleteReviewController)
+
+router.route('/recipeId/:recipeId')
+    .get(getReviewByRecipeIdController)
 
 export const reviewRoute = {basepath, router}
 
