@@ -52,7 +52,7 @@ export async function insertRecipe(recipe: Recipe): Promise<string> {
 
     await sql`INSERT INTO recipe (id, user_id, calories, carbs, cook_time, cuisine, fat_content, image_url, instructions, ingredients, meal_category, prep_time, protein, servings, title, total_time)
     VALUES (${recipe.id}, ${recipe.userId}, ${recipe.calories}, ${recipe.carbs},
-     ${recipe.cookTime}, ${recipe.cuisine}, ${recipe.fatContent}, ${recipe.imageUrl}, ${JSON.stringify(recipe.instructions)}, ${JSON.stringify(recipe.ingredients)}, ${recipe.mealCategory}, ${recipe.prepTime}, ${recipe.protein}, ${recipe.servings}, ${recipe.title}, ${recipe.totalTime})`
+     ${recipe.cookTime}, ${recipe.cuisine}, ${recipe.fatContent}, ${recipe.imageUrl}, ${sql.json(recipe.instructions)}, ${sql.json(recipe.ingredients)}, ${recipe.mealCategory}, ${recipe.prepTime}, ${recipe.protein}, ${recipe.servings}, ${recipe.title}, ${recipe.totalTime})`
     return 'recipe successfully created'
 }
 
@@ -75,21 +75,16 @@ export async function selectRecipeById(id: string): Promise<Recipe | null> {
 }
 
 export async function selectRecipeByCuisineAndMealCategory(cuisine: string, mealCategory: string): Promise<Recipe[]> {
-    console.log(cuisine, mealCategory)
+    
     const rowList = await sql`
         SELECT id, user_id, calories, carbs, cook_time, cuisine, fat_content, image_url, instructions, ingredients, meal_category, prep_time, protein, servings, title, total_time
         FROM recipe
         WHERE LOWER(cuisine) = LOWER(${cuisine}) AND LOWER(meal_category) = LOWER(${mealCategory})`
 
-    // Parse JSONB columns from database (postgres library returns them as objects)
-    const parsedRows = rowList.map((row: any) => ({
-        ...row,
-        instructions: JSON.parse(row.instructions),
-        ingredients: JSON.parse(row.ingredients)
-    }))
+
 
     // Enforce that the result is an array of one recipe, or null
-    return recipeSchema.array().parse(parsedRows)
+    return recipeSchema.array().parse(rowList)
 }
 
 export async function selectRecipesByUserId(userId: string): Promise<Recipe[]> {
@@ -108,3 +103,16 @@ export async function selectRecipesByUserId(userId: string): Promise<Recipe[]> {
     return recipeSchema.array().parse(parsedRows)
 
 }
+
+export async function selectRecipesByIngredient(ingredient: string): Promise<Recipe[]> {
+
+    const searchBy = [{name: ingredient}]
+    const rowList = await sql`SELECT id, user_id, calories, carbs, cook_time, cuisine, fat_content, image_url, instructions, ingredients, meal_category, prep_time, protein, servings, title, total_time
+        FROM recipe
+        WHERE ingredients @> ${sql.json(searchBy)}
+        `
+
+
+    // Enforce that the result is an array of one recipe, or null
+    return recipeSchema.array().parse(rowList)
+    }
