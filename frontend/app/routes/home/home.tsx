@@ -1,6 +1,7 @@
 import type { Route } from "../+types/home"
 import { FileInput, Label } from "flowbite-react";
 import {RecipeCard} from "~/components/recipeCard";
+import {getAllRecipes} from "../../utils/models/recipe.model";
 
 type Recipe = { image: string, name: string, stars: number }
 
@@ -11,19 +12,20 @@ export function meta({}: Route.MetaArgs) {
   ];
 }
 
-export default function Home() {
-    const allRecipes: Recipe[] = [
-        {image: "/image400.png", name: "Recipe name this recipe is amazing", stars: 4},
-        {image: "/image400.png", name: "Recipe name this recipe is amazing", stars: 3},
-        {image: "/image400.png", name: "Recipe name this recipe is amazing", stars: 5},
-        {image: "/image400.png", name: "Recipe name this recipe is amazing", stars: 1},
-        {image: "/image400.png", name: "Recipe name this recipe is amazing", stars: 5},
-        {image: "/image400.png", name: "Recipe name this recipe is amazing", stars: 5},
-        {image: "/image400.png", name: "Recipe name this recipe is amazing", stars: 5},
-        {image: "/image400.png", name: "Recipe name this recipe is amazing", stars: 5},
-    ]
+export async function loader() {
+    const recipes= await getAllRecipes()
+    return {recipes}
 
-    const recipes = allRecipes.slice(0, 8)
+
+
+}
+
+
+export default function Home({loaderData}: Route.ComponentProps) {
+const {recipes} = loaderData
+    console.log(recipes)
+
+
 
     return(
       <>
