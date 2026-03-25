@@ -1,5 +1,6 @@
 import { Router } from 'express'
 import {
+    getAllRecipesController,
     getRecipeByCuisineController,
     getRecipeByIdController, getRecipesByIngredientController, getRecipesByUserIdController,
     postRecipeController,
@@ -12,6 +13,7 @@ const router = Router ()
 
 router.route('/')
     .post(isLoggedInController, postRecipeController)
+    .get(getAllRecipesController)
 
 router.route('/:id')
     .get(getRecipeByIdController)

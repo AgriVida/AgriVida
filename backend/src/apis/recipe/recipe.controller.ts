@@ -4,7 +4,7 @@ import {
     type Recipe,
     insertRecipe,
     recipeSchema, selectRecipeById, selectRecipesByUserId, selectRecipeByCuisineAndMealCategory,
-    selectRecipesByIngredient
+    selectRecipesByIngredient, selectAllRecipes
 } from './recipe.model.ts'
 import {serverErrorResponse, zodErrorResponse} from "../../utils/response.utils.ts";
 import type {Status} from "../../utils/interfaces/Status.ts";
@@ -112,6 +112,21 @@ export async function getRecipesByIngredientController(request: Request, respons
 
         // get the recipe
         const recipes: Recipe[] = await selectRecipesByIngredient(ingredient.trim())
+
+        response.json({status: 200, message: null, data: recipes})
+    } catch (error: any) {
+        console.error(error)
+        serverErrorResponse(response, error.message)
+    }
+}
+
+
+export async function getAllRecipesController(request: Request, response: Response): Promise<void> {
+    try {
+
+
+        // get the recipe
+        const recipes: Recipe[] = await selectAllRecipes()
 
         response.json({status: 200, message: null, data: recipes})
     } catch (error: any) {
