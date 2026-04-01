@@ -4,7 +4,7 @@ import {RecipeCard} from "~/components/recipeCard";
 import {getAllRecipes} from "../../utils/models/recipe.model";
 import {getRecipeReviews} from "~/utils/models/review.model";
 import type {Recipe} from "~/utils/models/recipe.model";
-import {Form, useActionData} from "react-router";
+import {Form, redirect, useActionData} from "react-router";
 import {useEffect, useRef, useState} from "react";
 import {
     type FileUpload,
@@ -12,7 +12,6 @@ import {
 } from "@remix-run/form-data-parser";
 import {fileStorage, getStorageKey} from "~/utils/image-storage.server";
 import {v4} from "uuid";
-import {request} from "node:http";
 
 export function meta({}: Route.MetaArgs) {
     return [
@@ -24,8 +23,9 @@ export function meta({}: Route.MetaArgs) {
 export async function action({
                                  request,
                              }: Route.ActionArgs) {
+    const id = v4()
     const uploadHandler = async (fileUpload: FileUpload) => {
-        const id = v4()
+
         if (
             fileUpload.fieldName === "image" &&
             fileUpload.type.startsWith("image/")
@@ -38,18 +38,21 @@ export async function action({
 
             // Return a File for the FormData object. This is a LazyFile that knows how
             // to access the file's content if needed (using e.g. file.stream()) but
-            // waits until it is requested to actually read anything.
-            return fileStorage.get(storageKey);
+            // waits until it is requested to actually read anything
         }
     }
 
-    const formData = await parseFormData(
+    await parseFormData(
         request,
-        uploadHandler,
+        uploadHandler
     );
+console.log('i made it!')
+    return redirect(`/items-list/${id}`)
     // 'avatar' has already been processed at this point
-    const file = formData.get("image");
-    console.log(file);
+    // const file = formData.get("image");
+    // console.log(file);
+
+
 }
 
 export async function loader() {
@@ -83,7 +86,6 @@ export default function Home({loaderData}: Route.ComponentProps) {
     //Handle file selection
     const handleFileSelect = (event: React.ChangeEvent<HTMLInputElement>) => {
         const file = event.target.files?.[0];
-        console.log('file', file);
         if (!file) return;
 
         //Validate file type
@@ -158,8 +160,8 @@ export default function Home({loaderData}: Route.ComponentProps) {
 
                     <div className="flex justify-between items-center">
                         <button
-                            type="button"
-                            onClick={() => fileInputRef.current?.click()}
+                            type="submit"
+                            // onClick={() => fileInputRef.current?.click()}
                             className="p-2">
                             Image Upload
                         </button>
