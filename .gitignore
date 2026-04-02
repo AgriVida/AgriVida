@@ -1,4 +1,5 @@
 .DS_Store
+._*
 .idea
 node_modules
 project.env
