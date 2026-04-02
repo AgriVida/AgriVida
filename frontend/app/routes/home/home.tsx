@@ -46,6 +46,7 @@ export async function action({
         request,
         uploadHandler
     );
+
 console.log('i made it!')
     return redirect(`/items-list/${id}`)
     // 'avatar' has already been processed at this point
