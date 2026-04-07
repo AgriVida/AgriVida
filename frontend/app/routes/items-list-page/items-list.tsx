@@ -104,7 +104,7 @@ export default function ItemsList({params, loaderData}: Route.ComponentProps) {
             ing.forEach(i => { if (i?.value) urlParams.append('ingredients', i.value) })
             if (mt) urlParams.set('mealType', mt)
             if (cu) urlParams.set('cuisine', cu)
-            navigate(`/items-list/${params.id}?${urlParams.toString()}`, { replace: true })
+            navigate(`/items-list/${params.id}?${urlParams.toString()}`, { replace: true, preventScrollReset: true })
         })
         return () => subscription.unsubscribe()
     }, []) // eslint-disable-line react-hooks/exhaustive-deps
