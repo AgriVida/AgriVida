@@ -1,7 +1,7 @@
 import {data, redirect, useNavigate} from "react-router";
 import {getAllIngredients, type Ingredient} from "~/utils/models/ingredient.model";
 import type { Route } from "./+types/items-list";
-import {commitSession, getSession} from "~/utils/session.server";
+import {getSession} from "~/utils/session.server";
 import {GoogleGenAI} from "@google/genai";
 import {fileStorage, getStorageKey} from "~/utils/image-storage.server";
 import {z} from "zod/v4";
@@ -12,60 +12,46 @@ import {useState} from "react";
 
 export async function loader ({ params, request }:Route.LoaderArgs) {
     const session = await getSession(request.headers.get("Cookie"))
-    if (!session.has("user") || !session.has("ingredients")) {
-        redirect('/login')
-    }
-    const ingredientsDictionary = session.get('ingredients')
-    if (!ingredientsDictionary) {
+    if (!session.has("user")) {
         return redirect('/login')
     }
-    const ingredientsData: Ingredient[] = await getAllIngredients()
-    if (ingredientsDictionary[params.id]) {
-        return data({ingredients:ingredientsDictionary[params.id], ingredientsData},{
 
-            })
+    const requestUrl = new URL(request.url)
+    const ingredientsFromUrl = requestUrl.searchParams.getAll('ingredients')
+    const ingredientsData: Ingredient[] = await getAllIngredients()
+
+    if (ingredientsFromUrl.length > 0) {
+        return data({ ingredients: ingredientsFromUrl, ingredientsData })
     }
-    console.log(ingredientsDictionary[params.id])
+
     console.log('Calling Gemini')
     const storageKey = getStorageKey(params.id);
     const file = await fileStorage.get(storageKey);
 
     if (!file) {
-        throw new Response("User avatar not found", {
-            status: 404,
-        });
+        throw new Response("Image not found", { status: 404 });
     }
+
     const ai = new GoogleGenAI({apiKey:process.env.GEMINI_API_KEY});
-    const streamedFile = await file.arrayBuffer()
-    const base64ImageData = Buffer.from(streamedFile).toString("base64");
+    const base64ImageData = Buffer.from(await file.arrayBuffer()).toString("base64");
     const result = await ai.models.generateContent({
         model: "gemini-3-flash-preview",
-        config: {
-            responseMimeType: 'application/json'
-        },
+        config: { responseMimeType: 'application/json' },
         contents: [
-            {
-                inlineData: {
-                    mimeType: 'image/jpeg',
-                    data: base64ImageData,
-                },
-            },
+            { inlineData: { mimeType: 'image/jpeg', data: base64ImageData } },
             { text: "please give us a list of ingredients from the image and list the results as a clean JSON array of ingredients" }
         ],
     });
+
     const resultText = result.text
-    if (resultText === undefined) {
-        throw new Response('Failed to get list of ingredients', {status:400})
+    if (!resultText) {
+        throw new Response('Failed to get list of ingredients', { status: 400 })
     }
-    console.log(JSON.parse(resultText))
-    const ingredients = JSON.parse(resultText)
-    ingredientsDictionary[params.id] = ingredients
-    session.set("ingredients", ingredientsDictionary)
-    const headers = new Headers()
-    headers.append("Set-Cookie", await commitSession(session))
-    return data({ingredients, ingredientsData},{
-    headers
-        })
+
+    const ingredients: string[] = JSON.parse(resultText)
+    const redirectUrl = new URL(request.url)
+    ingredients.forEach(i => redirectUrl.searchParams.append('ingredients', i))
+    return redirect(redirectUrl.toString())
 }
 
 const ItemsSchema = z.object({
