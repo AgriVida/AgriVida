@@ -1,4 +1,4 @@
-import {data, redirect} from "react-router";
+import {data, redirect, useNavigate} from "react-router";
 import {getAllIngredients, type Ingredient} from "~/utils/models/ingredient.model";
 import type { Route } from "./+types/items-list";
 import {commitSession, getSession} from "~/utils/session.server";
@@ -6,7 +6,7 @@ import {GoogleGenAI} from "@google/genai";
 import {fileStorage, getStorageKey} from "~/utils/image-storage.server";
 import {z} from "zod/v4";
 import {zodResolver} from "@hookform/resolvers/zod";
-import {getValidatedFormData, useRemixForm} from "remix-hook-form";
+import {useRemixForm} from "remix-hook-form";
 import {useFieldArray} from "react-hook-form";
 import {useState} from "react";
 
@@ -77,19 +77,11 @@ const resolver = zodResolver(ItemsSchema)
 
 type Items = z.infer<typeof ItemsSchema>
 
-export async function action({ request }: Route.ActionArgs) {
-    const { errors, data: formData } = await getValidatedFormData<Items>(request, resolver)
-    if (errors) return { errors }
-
-    const url = new URL('/recipe-generation', new URL(request.url).origin)
-    formData.ingredients.forEach(i => url.searchParams.append('ingredients', i.value))
-    url.searchParams.set('mealType', formData.mealType)
-    url.searchParams.set('cuisine', formData.cuisine)
-    return redirect(url.toString())
-}
 
 export default function ItemsList({params, loaderData}: Route.ComponentProps) {
     const {ingredients, ingredientsData} = loaderData
+
+    const navigate = useNavigate()
 
     const { register, control, handleSubmit, formState: { errors } } = useRemixForm<Items>({
         resolver,
@@ -97,6 +89,15 @@ export default function ItemsList({params, loaderData}: Route.ComponentProps) {
             ingredients: ingredients.map((name: string) => ({ value: name })),
             mealType: '',
             cuisine: '',
+        },
+        submitHandlers: {
+            onValid: (data) => {
+                const params = new URLSearchParams()
+                data.ingredients.forEach(i => params.append('ingredients', i.value))
+                params.set('mealType', data.mealType)
+                params.set('cuisine', data.cuisine)
+                navigate(`/recipe-generation?${params.toString()}`)
+            }
         }
     })
     const { fields, append, remove } = useFieldArray({ control, name: 'ingredients' })
