@@ -44,7 +44,8 @@ export const SignUpUserBaseSchema = UserSchema
     })
 
 export const SignUpUserSchema = SignUpUserBaseSchema.refine(data => data.password === data.passwordConfirm, {
-    message: 'passwords do not match'
+    message: 'passwords do not match',
+    path: ['passwordConfirm']
 })
 
 
