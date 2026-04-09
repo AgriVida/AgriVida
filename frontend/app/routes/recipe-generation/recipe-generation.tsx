@@ -19,7 +19,7 @@ async function fetchGeminiSuggestions(
 ): Promise<RecipeSuggestion[]> {
     const ai = new GoogleGenAI({apiKey: process.env.GEMINI_API_KEY})
     const result = await ai.models.generateContent({
-        model: 'gemini-3-flash-preview',
+        model: 'gemini-2.0-flash',
         config: {responseMimeType: 'application/json'},
         contents: [{
             text: `You are a chef. Given these fridge ingredients: ${ingredients.join(', ')}, suggest exactly 3 ${cuisine} ${mealType} recipes that can be made. Return a JSON array of 3 objects with fields: title (string), description (1-2 sentence string), prepTime (string like "10 min"), cookTime (string like "20 min"), usedIngredients (array of strings from the provided list).`

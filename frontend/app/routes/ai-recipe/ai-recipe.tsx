@@ -31,7 +31,7 @@ export async function loader({request}: Route.LoaderArgs) {
 
     const ai = new GoogleGenAI({apiKey: process.env.GEMINI_API_KEY})
     const result = await ai.models.generateContent({
-        model: 'gemini-3-flash-preview',
+        model: 'gemini-2.0-flash',
         config: {responseMimeType: 'application/json'},
         contents: [{
             text: `You are a chef. Generate the complete recipe for "${title}".
