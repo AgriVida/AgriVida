@@ -7,3 +7,7 @@ export const fileStorage = createFsFileStorage(
 export function getStorageKey(photoId: string) {
     return `fridge-${photoId}-image`;
 }
+
+export function getAvatarStorageKey(userId: string) {
+    return `avatar-${userId}`;
+}

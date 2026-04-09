@@ -5,6 +5,7 @@ export default [
 
         index("routes/home/home.tsx"),
         route('/api/image/:id','routes/api/image.tsx'),
+        route('/api/avatar/:userId','routes/api/avatar.tsx'),
         route("/recipe", "routes/recipe/recipe.tsx"),
         route('/meals', 'routes/meals/meals.tsx'),
         route('/login', 'routes/login-newaccount/login.tsx'),
@@ -17,7 +18,8 @@ export default [
         route("/allfriends", "routes/friends/allfriends.tsx"),
         route('/saved-recipes', 'routes/recipe/saved-recipes.tsx'),
         route("/friendprofile", "routes/friends/friendprofile.tsx"),
-        route("/sign-up", "routes/sign-up/sign-up.tsx")
+        route("/sign-up", "routes/sign-up/sign-up.tsx"),
+        route("/logout", "routes/logout/logout.tsx")
 
     ])
 
