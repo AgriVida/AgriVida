@@ -1,71 +1,162 @@
+import React, { useState } from 'react';
+import { redirect, useLoaderData, useActionData } from "react-router";
+import type { Route } from "./+types/allfriends";
 import { AddFriend } from "~/components/AddFriend";
-import React from 'react';
-import {Link} from "react-router";
-import {FriendCard} from "~/components/friendcard";
-import {FriendRequestCard} from "~/components/friendrequest";
-// from martin
-type Friend = { image: string, name: string }
-type FriendRequest = { image: string, name: string }
+import { FriendCard } from "~/components/friendcard";
+import { FriendRequestCard } from "~/components/friendrequest";
+import { getSession } from "~/utils/session.server";
+import type { User } from "~/utils/models/user.model";
 
-export default function allFriends () {
-    // martin code
+type PublicUser = {
+    id: string
+    username: string
+    avatarUrl: string | null
+    bio: string | null
+    createdAt: string | null
+}
 
-    const allfriends: Friend[] = [
-        {image: "/image400.png", name: "Ben Smith1" },
-        {image: "/image400.png", name: "Martin Smith2" },
-        {image: "/image400.png", name: "Perla Smiths3" },
-        {image: "/image400.png", name: "George smiths4" },
+export async function loader({ request }: Route.LoaderArgs) {
+    const session = await getSession(request.headers.get("Cookie"))
+    const user: User | null = session.has("user") ? session.get("user") : null
 
-    ]
-    const friendrequest: FriendRequest[] = [
-        {image: "/image400.png", name: "Ben Smith1" },
-        {image: "/image400.png", name: "Martin Smith2" },
+    if (!user) {
+        throw redirect("/sign-in")
+    }
 
-    ]
-    const friends = allfriends.slice(0, 8)
-    const friendsrequest = friendrequest.slice(0, 8)
+    const cookie = request.headers.get("Cookie") ?? ""
+    const authorization = session.get("authorization") ?? ""
+    const response = await fetch(`${process.env.REST_API_URL}/friend`, {
+        headers: { Cookie: cookie, Authorization: authorization },
+    })
+
+    const result = await response.json()
+
+    const friends: PublicUser[] = result?.data?.friends ?? []
+    const pendingRequests: PublicUser[] = result?.data?.pendingRequests ?? []
+
+    return { user, friends, pendingRequests }
+}
+
+export async function action({ request }: Route.ActionArgs) {
+    const session = await getSession(request.headers.get("Cookie"))
+    const user: User | null = session.has("user") ? session.get("user") : null
+
+    if (!user) {
+        throw redirect("/sign-in")
+    }
+
+    const formData = await request.formData()
+    const intent = formData.get("intent")
+
+    if (intent === "sendFriendRequest") {
+        const email = formData.get("email") as string
+        const requestorId = formData.get("requestorId") as string
+
+        const authorization = session.get("authorization") ?? ""
+        const response = await fetch(`${process.env.REST_API_URL}/friend/email`, {
+            method: "POST",
+            headers: {
+                "Content-Type": "application/json",
+                Cookie: request.headers.get("Cookie") ?? "",
+                Authorization: authorization,
+            },
+            body: JSON.stringify({ email, requestorId }),
+        })
+
+        const result = await response.json()
+        return { message: result.message, status: result.status }
+    }
+
+    const authorization = session.get("authorization") ?? ""
+    const headers = {
+        "Content-Type": "application/json",
+        Cookie: request.headers.get("Cookie") ?? "",
+        Authorization: authorization,
+    }
+    const requestorId = formData.get("requestorId") as string
+
+    if (intent === "acceptFriend") {
+        const response = await fetch(`${process.env.REST_API_URL}/friend`, {
+            method: "PUT",
+            headers,
+            body: JSON.stringify({ requestorId }),
+        })
+        const result = await response.json()
+        return { message: result.message, status: result.status }
+    }
+
+    if (intent === "declineFriend") {
+        const response = await fetch(`${process.env.REST_API_URL}/friend`, {
+            method: "DELETE",
+            headers,
+            body: JSON.stringify({ requestorId }),
+        })
+        const result = await response.json()
+        return { message: result.message, status: result.status }
+    }
+
+    return null
+}
+
+export default function AllFriends() {
+    const { user, friends, pendingRequests } = useLoaderData<typeof loader>()
+    const actionData = useActionData<typeof action>()
+    const [nameSearch, setNameSearch] = useState("")
+
+    const filteredFriends = friends.filter(friend =>
+        friend.username.toLowerCase().includes(nameSearch.toLowerCase())
+    )
+
     return (
-
-        <div className=''>
+        <div>
             <div>
                 <h2 className="my-8 mx-16 font-bold text-3xl">Search New Friend:</h2>
-                <AddFriend />
+                <AddFriend requestorId={user.id} />
+                {actionData?.message && (
+                    <p className={`mx-16 mt-2 text-sm font-medium ${actionData.status === 200 ? "text-green-600" : "text-red-600"}`}>
+                        {actionData.message}
+                    </p>
+                )}
             </div>
 
             <div className="relative my-8 mx-16 pr-80">
-                <div className="absolute inset-y-0 start-0 flex items-center ps-3 pointer-events-none">
-
-                </div>
                 <h2 className="my-8 font-bold text-3xl">Search My Friends:</h2>
-                <input type="text" id="input-group-1"
-                       className="block w-full ps-9 pe-3 py-2.5 bg-neutral-secondary-medium border border-default-medium text-heading text-sm rounded-base focus:ring-brand focus:border-brand shadow-xs placeholder:text-body"
-                       placeholder="Search Friend"/>
-                <button type="button"
-                        className="mt-6 text-white bg-blue-600 box-border border border-transparent hover:bg-brand-strong focus:ring-4 focus:ring-brand-medium shadow-xs font-medium leading-5 rounded-base text-sm px-4 py-2.5 focus:outline-none">Find friend
-                </button>
-
+                <input
+                    type="text"
+                    value={nameSearch}
+                    onChange={e => setNameSearch(e.target.value)}
+                    className="block w-full ps-9 pe-3 py-2.5 bg-neutral-secondary-medium border border-default-medium text-heading text-sm rounded-base focus:ring-brand focus:border-brand shadow-xs placeholder:text-body"
+                    placeholder="Search by name"
+                />
             </div>
 
-{/*friends picture*/}
             <h2 className="mx-16 font-bold text-3xl">My Friends:</h2>
             <section className="mt-16">
-                <div className="grid md:grid-cols-2 lg:grid-cols-4 grid-cols-1 gap-16 justify-items-center md:container md:mx-auto mx-20">
-                    {friends.map(friend => <FriendCard friend={friend}/>)}
-                </div>
+                {filteredFriends.length === 0 ? (
+                    <p className="mx-16 text-body">
+                        {nameSearch ? "No friends match your search." : "You have no friends yet. Search by email above to add some!"}
+                    </p>
+                ) : (
+                    <div className="grid md:grid-cols-2 lg:grid-cols-4 grid-cols-1 gap-16 justify-items-center md:container md:mx-auto mx-20">
+                        {filteredFriends.map(friend => (
+                            <FriendCard key={friend.id} id={friend.id} friend={{ image: `/api/avatar/${friend.id}`, name: friend.username }} />
+                        ))}
+                    </div>
+                )}
             </section>
 
-            <h2 className="mx-16 mt-16 mb-8 font-bold text-3xl text-center">Requests:</h2>
-
-
-            <section className="my-16 mx-16">
-                <div className="grid md:grid-cols-2 lg:grid-cols-4 grid-cols-1 gap-16 justify-items-center md:container md:mx-auto mx-20">
-                    {friendsrequest.map(friendreq => <FriendRequestCard friend={friendreq}/>)}
-                </div>
-            </section>
-
+            {pendingRequests.length > 0 && (
+                <>
+                    <h2 className="mx-16 mt-16 mb-8 font-bold text-3xl text-center">Requests:</h2>
+                    <section className="my-16 mx-16">
+                        <div className="grid md:grid-cols-2 lg:grid-cols-4 grid-cols-1 gap-16 justify-items-center md:container md:mx-auto mx-20">
+                            {pendingRequests.map(req => (
+                                <FriendRequestCard key={req.id} requestorId={req.id} friend={{ image: `/api/avatar/${req.id}`, name: req.username }} />
+                            ))}
+                        </div>
+                    </section>
+                </>
+            )}
         </div>
-
-
-
-    );
+    )
 }

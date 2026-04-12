@@ -17,7 +17,7 @@ export default [
         route('/ai-recipe', 'routes/ai-recipe/ai-recipe.tsx'),
         route("/allfriends", "routes/friends/allfriends.tsx"),
         route('/saved-recipes', 'routes/recipe/saved-recipes.tsx'),
-        route("/friendprofile", "routes/friends/friendprofile.tsx"),
+        route("/friendprofile/:userId", "routes/friends/friendprofile.tsx"),
         route("/sign-up", "routes/sign-up/sign-up.tsx"),
         route("/logout", "routes/logout/logout.tsx")
 

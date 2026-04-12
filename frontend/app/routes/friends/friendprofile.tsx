@@ -1,80 +1,57 @@
-import React from 'react';
-import {Link} from "react-router";
-import {RecipeCard} from "~/components/recipeCard";
+import { redirect, useLoaderData, Link } from "react-router";
+import type { Route } from "./+types/friendprofile";
+import { getSession } from "~/utils/session.server";
 
+export async function loader({ request, params }: Route.LoaderArgs) {
+    const session = await getSession(request.headers.get("Cookie"))
+    if (!session.has("user")) {
+        throw redirect("/sign-in")
+    }
+
+    const response = await fetch(`${process.env.REST_API_URL}/user/${params.userId}`)
+    const result = await response.json()
+
+    if (result.status !== 200 || !result.data) {
+        throw new Response("Friend not found", { status: 404 })
+    }
+
+    return { friend: result.data }
+}
 
 export default function FriendProfile() {
+    const { friend } = useLoaderData<typeof loader>()
 
-    const lastCookedRecipes = [
-        {image: "/image400.png", name: "Chef John's Italian Meatballs", stars: 3},
-        {image: "/image400.png", name: "Chef John's Italian Meatballs", stars: 4},
-        {image: "/image400.png", name: "Chef John's Italian Meatballs", stars: 2},
-        {image: "/image400.png", name: "Chef John's Italian Meatballs", stars: 5},
-        {image: "/image400.png", name: "Chef John's Italian Meatballs", stars: 3},
-    ]
+    const joinedDate = friend.createdAt
+        ? new Date(friend.createdAt).toLocaleDateString(undefined, { year: 'numeric', month: 'long', day: 'numeric' })
+        : 'Unknown'
+
     return (
-
-
-        <div className="min-h-screen p-8">
-
-            <div className="flex gap-8 p-4 mb-8">
-
-                <Link className="underline text-xl px-4" to="/friends/add">Add Friend</Link>
-                <Link className="underline text-xl px-4" to="/friends/my-friends">My Friends</Link>
+        <div className="min-h-screen p-8 max-w-lg mx-auto">
+            <Link to="/allfriends" className="inline-flex items-center gap-2 text-blue-600 hover:underline mb-8">
+                ← Back to Friends
+            </Link>
+            <div className="flex flex-col items-center gap-6 mt-8">
+                <img
+                    src={`/api/avatar/${friend.id}`}
+                    alt={friend.username}
+                    className="w-32 h-32 rounded-full object-cover"
+                    onError={(e) => { (e.currentTarget as HTMLImageElement).src = "/image400.png" }}
+                />
+                <div className="w-full space-y-4">
+                    <div>
+                        <p className="text-sm text-gray-500 uppercase tracking-wide">Username</p>
+                        <p className="text-2xl font-bold">{friend.username}</p>
+                    </div>
+                    <div>
+                        <p className="text-sm text-gray-500 uppercase tracking-wide">Joined</p>
+                        <p className="text-lg">{joinedDate}</p>
+                    </div>
+                    <div>
+                        <p className="text-sm text-gray-500 uppercase tracking-wide">Bio</p>
+                        <p className="text-lg">{friend.bio ?? 'No bio yet.'}</p>
+                    </div>
+                </div>
             </div>
-
-            <h2 className="mb-4 font-bold text-3xl">Perla: </h2>
-
-            <div className="flex gap-8 p-4 mb-16">
-
-                <div className=" w-32 h-32 border border-black flex items-center justify-center">
-                    Picture
-                </div>
-
-                <div className=" flex flex-col gap-4">
-                    <button className=" bg-blue-400 text-white px-6 py-2 rounded">Send Message</button>
-                    <button className=" bg-blue-400 text-white px-6 py-2 rounded">Remove Friend</button>
-                </div>
-            </div>
-            <h2 className="text-3xl font-bold text-center mb-8">Perla's Favorite Recipes</h2>
-
-            <section className="mb-16">
-                <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-8 mx-8">
-                    <RecipeCard recipe={{image: "/image400.png", name: "Chef John's Italian Meatballs", stars: 3}}/>
-                    <RecipeCard recipe={{image: "/image400.png", name: "Chef John's Italian Meatballs", stars: 3}}/>
-                    <RecipeCard recipe={{image: "/image400.png", name: "Chef John's Italian Meatballs", stars: 3}}/>
-                    <RecipeCard recipe={{image: "/image400.png", name: "Chef John's Italian Meatballs", stars: 3}}/>
-                    <RecipeCard recipe={{image: "/image400.png", name: "Chef John's Italian Meatballs", stars: 3}}/>
-                </div>
-
-                {/*drop menu*/}
-
-                <div className="flex justify-end mt-8 mr-8">
-                    <select className="border border-gray-300 rounded px-4 py-2">
-                        <option>Sort by</option>
-                        <option>Latest</option>
-                        <option>Popular</option>
-                        <option>Oldest</option>
-                    </select>
-                </div>
-            </section>
-            <h2 className="text-3xl font-bold text-center mb-8">Perla's Last Cooked Recipes</h2>
-
-            <section className="mb-16">
-                <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-8 mx-8">
-                    {lastCookedRecipes.map(recipe => <RecipeCard recipe={recipe}/>)}
-                </div>
-
-                <div className="flex justify-end mt-8 mr-8">
-                    <select className="border border-gray-300 rounded px-4 py-2">
-                        <option>Sort by</option>
-                        <option>Latest</option>
-                        <option>Popular</option>
-                        <option>Oldest</option>
-                    </select>
-                </div>
-            </section>
-
         </div>
-    );
+    )
 }
