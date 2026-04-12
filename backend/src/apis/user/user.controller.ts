@@ -1,8 +1,23 @@
 import type { Request, Response } from 'express'
 import { z } from 'zod/v4'
-import { selectPrivateUserByUserEmail, updateUserPasswordById, updateUserBioById } from './user.model.ts'
+import { selectPrivateUserByUserEmail, updateUserPasswordById, updateUserBioById, selectPublicUserById } from './user.model.ts'
 import { validatePassword, setHash } from '../../utils/auth.utils.ts'
 import { zodErrorResponse, serverErrorResponse } from '../../utils/response.utils.ts'
+
+export async function getPublicUserController (request: Request, response: Response): Promise<void> {
+    try {
+        const { userId } = request.params
+        const user = await selectPublicUserById(userId)
+        if (!user) {
+            response.json({ status: 404, message: 'User not found', data: null })
+            return
+        }
+        response.json({ status: 200, message: 'User retrieved successfully', data: user })
+    } catch (error: unknown) {
+        console.error(error)
+        serverErrorResponse(response)
+    }
+}
 
 export async function putUpdateProfileController (request: Request, response: Response): Promise<void> {
     try {

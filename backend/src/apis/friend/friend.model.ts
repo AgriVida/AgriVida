@@ -1,6 +1,6 @@
 import { z } from 'zod/v4'
 import {sql} from '../../utils/database.utils.ts';
-import {type PrivateUser, PrivateUserSchema} from "../user/user.model.ts";
+import {type PrivateUser, PrivateUserSchema, type PublicUser, PublicUserSchema} from "../user/user.model.ts";
 
 export const friendSchema = z.object({
     requesteeId: z.uuidv7('Please provide a valid uuid for requestee id'),
@@ -30,6 +30,46 @@ export async function selectFriendByPrimaryKey (requesteeId: string, requestorId
 
     const result = friendSchema.array().max(1).parse(rowList)
     return result[0] ?? null
+}
+
+export async function updateFriendAccepted (requesteeId: string, requestorId: string): Promise<string> {
+    await sql`
+        UPDATE friend SET accepted = true
+        WHERE requestee_id = ${requesteeId} AND requestor_id = ${requestorId}`
+    return 'Friend request accepted'
+}
+
+export async function deleteFriend (requesteeId: string, requestorId: string): Promise<string> {
+    await sql`
+        DELETE FROM friend
+        WHERE requestee_id = ${requesteeId} AND requestor_id = ${requestorId}`
+    return 'Friend request declined'
+}
+
+export async function selectAcceptedFriendsByUserId (userId: string): Promise<PublicUser[]> {
+    const rowList = await sql`
+        SELECT u.id, u.avatar_url, u.bio, u.created_at, u.username
+        FROM "user" u
+        JOIN friend f ON (
+            (f.requestor_id = ${userId} AND f.requestee_id = u.id)
+            OR (f.requestee_id = ${userId} AND f.requestor_id = u.id)
+        )
+        WHERE f.accepted = true
+        ORDER BY u.username ASC`
+
+    return PublicUserSchema.array().parse(rowList)
+}
+
+export async function selectPendingRequestsByUserId (userId: string): Promise<PublicUser[]> {
+    const rowList = await sql`
+        SELECT u.id, u.avatar_url, u.bio, u.created_at, u.username
+        FROM "user" u
+        JOIN friend f ON f.requestor_id = u.id
+        WHERE f.requestee_id = ${userId}
+        AND (f.accepted = false OR f.accepted IS NULL)
+        ORDER BY u.username ASC`
+
+    return PublicUserSchema.array().parse(rowList)
 }
 
 // export async function findFriendByEmail (email: string): Promise<PrivateUser | null> {

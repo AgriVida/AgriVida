@@ -90,6 +90,18 @@ export async function updateUser (user: PrivateUser): Promise<string> {
   return 'Profile successfully updated'
 }
 //
+export async function selectPublicUserById (id: string): Promise<PublicUser | null> {
+  const rowList = await sql`SELECT id, avatar_url, bio, created_at, username FROM "user" WHERE id = ${id}`
+  const result = PublicUserSchema.array().max(1).parse(rowList)
+  return result[0] ?? null
+}
+
+export async function selectPublicUserByEmail (email: string): Promise<PublicUser | null> {
+  const rowList = await sql`SELECT id, avatar_url, bio, created_at, username FROM "user" WHERE email = ${email}`
+  const result = PublicUserSchema.array().max(1).parse(rowList)
+  return result[0] ?? null
+}
+
 export async function selectPrivateUserByUserEmail (email: string): Promise<PrivateUser | null> {
   // create a prepared statement that selects the user by email and execute the statement
   const rowList = await sql`SELECT id, activation_token, avatar_url, bio, created_at, email, hash, username FROM "user" WHERE email = ${email}`
