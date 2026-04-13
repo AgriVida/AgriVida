@@ -1,8 +1,13 @@
-import {GoogleGenAI} from "@google/genai";
+import Anthropic from "@anthropic-ai/sdk";
 import {getRecipesByCuisineAndMealCategory, type Recipe} from "~/utils/models/recipe.model";
 import type {Route} from "./+types/recipe-generation";
 import {RecipeCard} from "~/components/recipeCard";
 import {Link} from "react-router";
+
+function extractJson(text: string): string {
+    const match = text.match(/```(?:json)?\s*([\s\S]*?)\s*```/)
+    return match ? match[1] : text.trim()
+}
 
 type RecipeSuggestion = {
     title: string
@@ -12,20 +17,23 @@ type RecipeSuggestion = {
     usedIngredients: string[]
 }
 
-async function fetchGeminiSuggestions(
+async function fetchAiSuggestions(
     ingredients: string[],
     mealType: string,
     cuisine: string
 ): Promise<RecipeSuggestion[]> {
-    const ai = new GoogleGenAI({apiKey: process.env.GEMINI_API_KEY})
-    const result = await ai.models.generateContent({
-        model: 'gemini-2.0-flash',
-        config: {responseMimeType: 'application/json'},
-        contents: [{
-            text: `You are a chef. Given these fridge ingredients: ${ingredients.join(', ')}, suggest exactly 3 ${cuisine} ${mealType} recipes that can be made. Return a JSON array of 3 objects with fields: title (string), description (1-2 sentence string), prepTime (string like "10 min"), cookTime (string like "20 min"), usedIngredients (array of strings from the provided list).`
+    const anthropic = new Anthropic({apiKey: process.env.ANTHROPIC_API_KEY})
+    const response = await anthropic.messages.create({
+        model: 'claude-haiku-4-5-20251001',
+        max_tokens: 1024,
+        system: "You are a chef. Respond only with valid JSON, no markdown or explanations.",
+        messages: [{
+            role: "user",
+            content: `Given these fridge ingredients: ${ingredients.join(', ')}, suggest exactly 3 ${cuisine} ${mealType} recipes that can be made. Return a JSON array of 3 objects with fields: title (string), description (1-2 sentence string), prepTime (string like "10 min"), cookTime (string like "20 min"), usedIngredients (array of strings from the provided list).`
         }]
     })
-    return JSON.parse(result.text ?? '[]')
+    const text = response.content[0].type === 'text' ? response.content[0].text : null
+    return JSON.parse(extractJson(text ?? '[]'))
 }
 
 export async function loader({request}: Route.LoaderArgs) {
@@ -35,7 +43,7 @@ export async function loader({request}: Route.LoaderArgs) {
     const cuisine = url.searchParams.get('cuisine') ?? ''
 
     const [aiSuggestions, dbRecipes] = await Promise.all([
-        fetchGeminiSuggestions(ingredients, mealType, cuisine),
+        fetchAiSuggestions(ingredients, mealType, cuisine),
         getRecipesByCuisineAndMealCategory(cuisine, mealType),
     ])
 

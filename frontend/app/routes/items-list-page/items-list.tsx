@@ -2,13 +2,18 @@ import {data, redirect, useNavigate} from "react-router";
 import {getAllIngredients, type Ingredient} from "~/utils/models/ingredient.model";
 import type { Route } from "./+types/items-list";
 import {getSession} from "~/utils/session.server";
-import {GoogleGenAI} from "@google/genai";
+import Anthropic from "@anthropic-ai/sdk";
 import {fileStorage, getStorageKey} from "~/utils/image-storage.server";
 import {z} from "zod/v4";
 import {zodResolver} from "@hookform/resolvers/zod";
 import {useRemixForm} from "remix-hook-form";
 import {useFieldArray} from "react-hook-form";
 import {useState, useEffect} from "react";
+
+function extractJson(text: string): string {
+    const match = text.match(/```(?:json)?\s*([\s\S]*?)\s*```/)
+    return match ? match[1] : text.trim()
+}
 
 // Prevent the loader from re-running when we update URL params reactively
 export function shouldRevalidate({ currentUrl, nextUrl }: Route.ShouldRevalidateFunctionArgs) {
@@ -40,25 +45,36 @@ export async function loader ({ params, request }:Route.LoaderArgs) {
     if (!file) {
         throw new Response("Image not found", { status: 404 });
     }
-    console.log('Calling Gemini')
+    console.log('Calling Claude')
 
-    const ai = new GoogleGenAI({apiKey:process.env.GEMINI_API_KEY});
-    const base64ImageData = Buffer.from(await file.arrayBuffer()).toString("base64");
-    const result = await ai.models.generateContent({
-        model: "gemini-2.0-flash",
-        config: { responseMimeType: 'application/json' },
-        contents: [
-            { inlineData: { mimeType: file.type, data: base64ImageData } },
-            { text: "please give us a list of ingredients from the image and list the results as a clean JSON array of ingredients" }
-        ],
-    });
+    const anthropic = new Anthropic({apiKey: process.env.ANTHROPIC_API_KEY})
+    const base64ImageData = Buffer.from(await file.arrayBuffer()).toString("base64")
+    const response = await anthropic.messages.create({
+        model: 'claude-haiku-4-5-20251001',
+        max_tokens: 512,
+        system: "Respond only with a valid JSON array of ingredient name strings. No markdown, no explanation.",
+        messages: [{
+            role: "user",
+            content: [
+                {
+                    type: "image",
+                    source: {
+                        type: "base64",
+                        media_type: file.type as "image/jpeg" | "image/png" | "image/gif" | "image/webp",
+                        data: base64ImageData
+                    }
+                },
+                {type: "text", text: "List all ingredients you can see in this fridge photo as a JSON array of strings."}
+            ]
+        }]
+    })
 
-    const resultText = result.text
+    const resultText = response.content[0].type === 'text' ? response.content[0].text : null
     if (!resultText) {
         throw new Response('Failed to get list of ingredients', { status: 400 })
     }
 
-    const ingredients: string[] = JSON.parse(resultText)
+    const ingredients: string[] = JSON.parse(extractJson(resultText))
     const redirectUrl = new URL(request.url)
     ingredients.forEach(i => redirectUrl.searchParams.append('ingredients', i))
     return redirect(redirectUrl.toString())

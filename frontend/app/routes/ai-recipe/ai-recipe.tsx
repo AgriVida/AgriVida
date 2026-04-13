@@ -1,9 +1,14 @@
-import {GoogleGenAI} from "@google/genai";
+import Anthropic from "@anthropic-ai/sdk";
 import {redirect, data, Form} from "react-router";
 import {v7 as uuid} from "uuid";
 import {postRecipe, type Recipe} from "~/utils/models/recipe.model";
 import {getSession} from "~/utils/session.server";
 import type {Route} from "./+types/ai-recipe";
+
+function extractJson(text: string): string {
+    const match = text.match(/```(?:json)?\s*([\s\S]*?)\s*```/)
+    return match ? match[1] : text.trim()
+}
 
 type FullAiRecipe = {
     title: string
@@ -29,12 +34,14 @@ export async function loader({request}: Route.LoaderArgs) {
     const session = await getSession(request.headers.get("Cookie"))
     const user = session.has("user") ? session.get("user") : null
 
-    const ai = new GoogleGenAI({apiKey: process.env.GEMINI_API_KEY})
-    const result = await ai.models.generateContent({
-        model: 'gemini-2.0-flash',
-        config: {responseMimeType: 'application/json'},
-        contents: [{
-            text: `You are a chef. Generate the complete recipe for "${title}".
+    const anthropic = new Anthropic({apiKey: process.env.ANTHROPIC_API_KEY})
+    const response = await anthropic.messages.create({
+        model: 'claude-haiku-4-5-20251001',
+        max_tokens: 2048,
+        system: "You are a chef. Respond only with valid JSON, no markdown or explanations.",
+        messages: [{
+            role: "user",
+            content: `Generate the complete recipe for "${title}".
 Cuisine: ${cuisine}. Meal type: ${mealType}.
 Available fridge ingredients: ${ingredients.join(', ')}.
 Return a JSON object with these exact fields:
@@ -50,7 +57,8 @@ Return a JSON object with these exact fields:
         }]
     })
 
-    const recipe: FullAiRecipe = JSON.parse(result.text ?? '{}')
+    const text = response.content[0].type === 'text' ? response.content[0].text : null
+    const recipe: FullAiRecipe = JSON.parse(extractJson(text ?? '{}'))
     return {recipe, user, cuisine, mealType}
 }
 
