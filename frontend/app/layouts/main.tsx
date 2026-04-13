@@ -1,6 +1,7 @@
 import {Outlet, useLoaderData} from "react-router"
 import Footer from "~/components/Footer";
 import {Navigation} from "~/components/Navigation";
+import {CookieConsent} from "~/components/CookieConsent";
 import {getSession} from "~/utils/session.server";
 import type {Route} from "./+types/main";
 
@@ -18,6 +19,7 @@ export default function MainLayout() {
                 <Outlet/>
                 <Footer />
             </div>
+            <CookieConsent />
         </>
     )
 }
