@@ -51,8 +51,8 @@ Return a JSON object with these exact fields:
 - cookTime (string, e.g. "25 min")
 - totalTime (string, e.g. "40 min")
 - servings (number)
-- ingredients (array of objects with: name (string), amount (string), units (string))
-- instructions (array of objects with: stepNumber (number), instruction (string, full detail))
+- ingredients (array of objects with: name (string), amount (string), units (string — MUST be a short abbreviation of 16 characters or fewer, e.g. "g", "kg", "ml", "tsp", "tbsp", "cup", "oz", "lb", "piece", "clove", "whole", "slice"))
+- instructions (array of objects with: stepNumber (number), instruction (string — each step MUST be 255 characters or fewer))
 - nutrition (object with: calories (string), fat (string), carbs (string), protein (string))`
         }]
     })
