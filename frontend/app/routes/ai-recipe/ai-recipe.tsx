@@ -4,6 +4,8 @@ import {v7 as uuid} from "uuid";
 import {postRecipe, type Recipe} from "~/utils/models/recipe.model";
 import {getSession} from "~/utils/session.server";
 import type {Route} from "./+types/ai-recipe";
+import {Link} from "react-router";
+import {useRef, useState} from "react";
 
 function extractJson(text: string): string {
     const match = text.match(/```(?:json)?\s*([\s\S]*?)\s*```/)
@@ -20,6 +22,13 @@ type FullAiRecipe = {
     ingredients: Array<{name: string, amount: string, units: string}>
     instructions: Array<{stepNumber: number, instruction: string}>
     nutrition: {calories: string, fat: string, carbs: string, protein: string}
+}
+
+function scaleAmount(amount: string, servings: number, baseServings: number): string {
+    const num = parseFloat(amount)
+    if (isNaN(num) || !baseServings) return amount
+    const scaled = (num * servings) / baseServings
+    return scaled % 1 === 0 ? `${Math.round(scaled)}` : scaled.toFixed(1)
 }
 
 export async function loader({request}: Route.LoaderArgs) {
@@ -64,7 +73,6 @@ Return a JSON object with these exact fields:
 
 export async function action({request}: Route.ActionArgs) {
     const session = await getSession(request.headers.get("Cookie"))
-    console.log('Save recipe action - session has user:', session.has("user"), 'cookie:', request.headers.get("Cookie")?.substring(0, 50))
     if (!session.has("user")) {
         return data({error: "Please log in to save a recipe"}, {status: 401})
     }
@@ -92,7 +100,7 @@ export async function action({request}: Route.ActionArgs) {
         prepTime: aiRecipe.prepTime,
         totalTime: aiRecipe.totalTime,
         servings: aiRecipe.servings,
-        cuisine: cuisine,
+        cuisine,
         mealCategory: mealType,
         imageUrl: null,
         ingredients: aiRecipe.ingredients.map(ing => ({
@@ -115,95 +123,252 @@ export async function action({request}: Route.ActionArgs) {
 export default function AiRecipe({loaderData, actionData}: Route.ComponentProps) {
     const {recipe, user, cuisine, mealType} = loaderData
 
-    return (
-        <div className="max-w-3xl mx-auto px-8 py-16 mb-28">
-            <p className="text-amber-600 text-sm font-medium mb-2">AI Generated Recipe</p>
-            <h1 className="font-bold text-3xl mb-2">{recipe.title}</h1>
-            <p className="text-body mb-8">{recipe.description}</p>
+    const baseServings = recipe.servings ?? 1
+    const [servings, setServings] = useState(baseServings)
+    const [cookMode, setCookMode] = useState(false)
+    const [currentStep, setCurrentStep] = useState(0)
+    const methodRef = useRef<HTMLDivElement>(null)
 
-            <div className="flex gap-8 mb-10 text-center">
-                <div>
-                    <p className="font-semibold text-lg">{recipe.prepTime}</p>
-                    <p className="text-body text-sm">Prep</p>
+    const instructions = recipe.instructions ?? []
+    const ingredients = recipe.ingredients ?? []
+
+    return (
+        <div className="max-w-5xl mx-auto px-4 py-8 mb-16">
+
+            {/* ── Back button ── */}
+            <Link
+                to="/recipe-generation"
+                onClick={e => { e.preventDefault(); history.back() }}
+                className="inline-flex items-center gap-1.5 px-4 py-2 border border-gray-300 rounded-lg text-sm font-medium hover:bg-gray-50 transition-colors mb-8"
+            >
+                ← Back to suggestions
+            </Link>
+
+            {/* ── Hero: two-column ── */}
+            <div className="grid lg:grid-cols-2 gap-8 mb-10">
+
+                {/* Image placeholder */}
+                <div className="relative rounded-2xl overflow-hidden bg-amber-50 flex items-center justify-center" style={{minHeight: '280px'}}>
+                    <span className="text-7xl" aria-hidden>🍳</span>
+                    <span className="absolute top-3 left-3 bg-amber-500 text-white text-xs font-semibold px-2.5 py-1 rounded-full shadow-sm">
+                        AI Generated
+                    </span>
                 </div>
-                <div>
-                    <p className="font-semibold text-lg">{recipe.cookTime}</p>
-                    <p className="text-body text-sm">Cook</p>
-                </div>
-                <div>
-                    <p className="font-semibold text-lg">{recipe.totalTime}</p>
-                    <p className="text-body text-sm">Total</p>
-                </div>
-                <div>
-                    <p className="font-semibold text-lg">{recipe.servings}</p>
-                    <p className="text-body text-sm">Servings</p>
+
+                {/* Info */}
+                <div className="flex flex-col justify-center">
+                    <h1 className="text-3xl font-bold text-gray-900 mb-3">{recipe.title}</h1>
+                    <p className="text-sm text-gray-500 leading-relaxed mb-5">{recipe.description}</p>
+
+                    {/* Tags */}
+                    <div className="flex flex-wrap gap-2 mb-6">
+                        {mealType && (
+                            <span className="px-3 py-1 rounded-full border border-gray-200 text-gray-600 text-xs font-medium">
+                                {mealType.toLowerCase()}
+                            </span>
+                        )}
+                        {cuisine && (
+                            <span className="px-3 py-1 rounded-full border border-gray-200 text-gray-600 text-xs font-medium">
+                                {cuisine.toLowerCase()}
+                            </span>
+                        )}
+                    </div>
+
+                    {/* Time + stats grid */}
+                    <div className="grid grid-cols-2 gap-x-8 gap-y-4 border-t border-b border-gray-100 py-5 mb-6">
+                        <div>
+                            <p className="text-xs font-semibold tracking-widest text-gray-400 uppercase mb-0.5">Prep</p>
+                            <p className="text-lg font-bold text-gray-900">{recipe.prepTime}</p>
+                        </div>
+                        <div>
+                            <p className="text-xs font-semibold tracking-widest text-gray-400 uppercase mb-0.5">Cook</p>
+                            <p className="text-lg font-bold text-gray-900">{recipe.cookTime}</p>
+                        </div>
+                        <div>
+                            <p className="text-xs font-semibold tracking-widest text-gray-400 uppercase mb-0.5">Servings</p>
+                            <p className="text-lg font-bold text-gray-900">{recipe.servings}</p>
+                        </div>
+                        <div>
+                            <p className="text-xs font-semibold tracking-widest text-gray-400 uppercase mb-0.5">Calories</p>
+                            <p className="text-lg font-bold text-gray-900">{recipe.nutrition.calories}</p>
+                        </div>
+                    </div>
+
+                    {/* Action buttons */}
+                    <div className="flex gap-2 flex-wrap">
+                        <button
+                            type="button"
+                            onClick={() => methodRef.current?.scrollIntoView({behavior: 'smooth'})}
+                            className="px-5 py-2.5 bg-gray-900 hover:bg-gray-800 text-white rounded-lg text-sm font-semibold transition-colors"
+                        >
+                            Start cooking
+                        </button>
+                        <button
+                            type="button"
+                            onClick={() => window.print()}
+                            className="px-5 py-2.5 border border-gray-300 rounded-lg text-sm font-medium hover:bg-gray-50 transition-colors"
+                        >
+                            Print
+                        </button>
+                    </div>
                 </div>
             </div>
 
-            <section className="mb-10">
-                <h2 className="font-bold text-2xl mb-4">Ingredients</h2>
-                <ul className="list-disc list-inside space-y-1">
-                    {recipe.ingredients.map((ing, i) => (
-                        <li key={i} className="text-body">
-                            {ing.amount} {ing.units} {ing.name}
-                        </li>
-                    ))}
-                </ul>
-            </section>
+            {/* ── Body: ingredients left, method right ── */}
+            <div className="grid lg:grid-cols-5 gap-8">
 
-            <section className="mb-10">
-                <h2 className="font-bold text-2xl mb-4">Instructions</h2>
-                <ol className="space-y-6">
-                    {recipe.instructions.map((step) => (
-                        <li key={step.stepNumber} className="flex gap-4">
-                            <span className="font-bold text-amber-600 text-lg w-6 shrink-0">{step.stepNumber}</span>
-                            <p className="text-body">{step.instruction}</p>
-                        </li>
-                    ))}
-                </ol>
-            </section>
+                {/* ── Left: Ingredients + Nutrition ── */}
+                <div className="lg:col-span-2">
 
-            <section className="mb-10">
-                <h2 className="font-bold text-2xl mb-4">Nutrition Facts <span className="text-sm font-normal text-body">per serving</span></h2>
-                <div className="flex gap-8">
-                    <div className="text-center">
-                        <p className="font-bold text-xl">{recipe.nutrition.calories}</p>
-                        <p className="text-body text-sm">Calories</p>
+                    {/* Ingredients header with serving scaler */}
+                    <div className="flex items-center justify-between mb-4">
+                        <h2 className="text-lg font-bold text-gray-900">Ingredients</h2>
+                        <div className="flex items-center gap-2 border border-gray-200 rounded-lg overflow-hidden">
+                            <button
+                                type="button"
+                                onClick={() => setServings(s => Math.max(1, s - 1))}
+                                className="w-8 h-8 flex items-center justify-center text-gray-500 hover:bg-gray-50 transition-colors text-lg"
+                            >
+                                −
+                            </button>
+                            <span className="w-6 text-center text-sm font-semibold text-gray-800">{servings}</span>
+                            <button
+                                type="button"
+                                onClick={() => setServings(s => s + 1)}
+                                className="w-8 h-8 flex items-center justify-center text-gray-500 hover:bg-gray-50 transition-colors text-lg"
+                            >
+                                +
+                            </button>
+                        </div>
                     </div>
-                    <div className="text-center">
-                        <p className="font-bold text-xl">{recipe.nutrition.fat}</p>
-                        <p className="text-body text-sm">Fat</p>
+
+                    {/* Ingredient list */}
+                    <div className="divide-y divide-gray-100">
+                        {ingredients.map((ing, i) => (
+                            <div key={i} className="flex items-center justify-between py-2.5">
+                                <span className="text-sm text-gray-800 capitalize">{ing.name}</span>
+                                <span className="text-sm text-gray-500 shrink-0 ml-4">
+                                    {scaleAmount(ing.amount, servings, baseServings)} {ing.units}
+                                </span>
+                            </div>
+                        ))}
                     </div>
-                    <div className="text-center">
-                        <p className="font-bold text-xl">{recipe.nutrition.carbs}</p>
-                        <p className="text-body text-sm">Carbs</p>
-                    </div>
-                    <div className="text-center">
-                        <p className="font-bold text-xl">{recipe.nutrition.protein}</p>
-                        <p className="text-body text-sm">Protein</p>
+
+                    {/* Nutrition */}
+                    <div className="mt-8 border border-gray-200 rounded-xl p-4 bg-white">
+                        <p className="text-xs font-semibold tracking-widest text-gray-400 uppercase mb-3">Nutrition per serving</p>
+                        <div className="divide-y divide-gray-100">
+                            {[
+                                {label: 'Calories', value: recipe.nutrition.calories},
+                                {label: 'Carbs',    value: recipe.nutrition.carbs},
+                                {label: 'Protein',  value: recipe.nutrition.protein},
+                                {label: 'Fat',      value: recipe.nutrition.fat},
+                            ].map(({label, value}) => (
+                                <div key={label} className="flex justify-between py-2">
+                                    <span className="text-sm text-gray-600">{label}</span>
+                                    <span className="text-sm font-semibold text-gray-900">{value}</span>
+                                </div>
+                            ))}
+                        </div>
                     </div>
                 </div>
-            </section>
 
-            {actionData && 'error' in actionData && (
-                <p className="text-red-500 mb-4">{actionData.error}</p>
-            )}
+                {/* ── Right: Method ── */}
+                <div className="lg:col-span-3" ref={methodRef}>
+                    <div className="flex items-center justify-between mb-4">
+                        <h2 className="text-lg font-bold text-gray-900">Method</h2>
+                        <div className="flex border border-gray-200 rounded-lg overflow-hidden text-sm">
+                            <button
+                                type="button"
+                                onClick={() => { setCookMode(false); setCurrentStep(0) }}
+                                className={`px-3 py-1.5 transition-colors ${!cookMode ? 'bg-gray-900 text-white' : 'text-gray-500 hover:bg-gray-50'}`}
+                            >
+                                Normal
+                            </button>
+                            <button
+                                type="button"
+                                onClick={() => { setCookMode(true); setCurrentStep(0) }}
+                                className={`px-3 py-1.5 transition-colors ${cookMode ? 'bg-gray-900 text-white' : 'text-gray-500 hover:bg-gray-50'}`}
+                            >
+                                Cook mode
+                            </button>
+                        </div>
+                    </div>
 
-            {user ? (
-                <Form method="POST">
-                    <input type="hidden" name="recipeJson" value={JSON.stringify(recipe)} />
-                    <input type="hidden" name="cuisine" value={cuisine} />
-                    <input type="hidden" name="mealType" value={mealType} />
-                    <button
-                        type="submit"
-                        className="text-white bg-amber-500 border border-transparent hover:bg-brand-strong focus:ring-4 focus:ring-brand-medium shadow-xs font-medium leading-5 rounded-base text-sm px-6 py-3 focus:outline-none"
-                    >
-                        Save Recipe
-                    </button>
-                </Form>
-            ) : (
-                <p className="text-body italic">Log in to save this recipe and leave a review.</p>
-            )}
+                    {cookMode ? (
+                        <div>
+                            <p className="text-xs text-gray-400 mb-4">Step {currentStep + 1} of {instructions.length}</p>
+                            <div className="border border-emerald-200 bg-emerald-50 rounded-2xl p-6 min-h-48">
+                                <div className="flex gap-4">
+                                    <span className="w-8 h-8 rounded-full bg-emerald-500 text-white text-sm font-bold flex items-center justify-center shrink-0">
+                                        {instructions[currentStep]?.stepNumber}
+                                    </span>
+                                    <p className="text-gray-800 leading-relaxed">{instructions[currentStep]?.instruction}</p>
+                                </div>
+                            </div>
+                            <div className="flex justify-between mt-4">
+                                <button
+                                    type="button"
+                                    onClick={() => setCurrentStep(s => Math.max(0, s - 1))}
+                                    disabled={currentStep === 0}
+                                    className="px-4 py-2 border border-gray-300 rounded-lg text-sm font-medium disabled:opacity-40 hover:bg-gray-50 transition-colors"
+                                >
+                                    ← Previous
+                                </button>
+                                <button
+                                    type="button"
+                                    onClick={() => setCurrentStep(s => Math.min(instructions.length - 1, s + 1))}
+                                    disabled={currentStep === instructions.length - 1}
+                                    className="px-4 py-2 border border-gray-300 rounded-lg text-sm font-medium disabled:opacity-40 hover:bg-gray-50 transition-colors"
+                                >
+                                    Next →
+                                </button>
+                            </div>
+                        </div>
+                    ) : (
+                        <div className="space-y-3">
+                            {instructions.map((step, i) => (
+                                <div key={step.stepNumber} className={`border rounded-xl p-4 flex gap-4 ${i === 0 ? 'border-emerald-200 bg-emerald-50' : 'border-gray-200 bg-white'}`}>
+                                    <span className={`w-7 h-7 rounded-full text-white text-sm font-bold flex items-center justify-center shrink-0 ${i === 0 ? 'bg-emerald-500' : 'bg-gray-800'}`}>
+                                        {step.stepNumber}
+                                    </span>
+                                    <p className="text-sm text-gray-700 leading-relaxed">{step.instruction}</p>
+                                </div>
+                            ))}
+                        </div>
+                    )}
+                </div>
+            </div>
+
+            {/* ── Save recipe ── */}
+            <div className="mt-14 border-t border-gray-100 pt-10">
+                {actionData && 'error' in actionData && (
+                    <p className="text-sm text-red-500 mb-4">{actionData.error}</p>
+                )}
+
+                {user ? (
+                    <div>
+                        <h2 className="text-lg font-bold text-gray-900 mb-1">Save this recipe</h2>
+                        <p className="text-sm text-gray-500 mb-4">Add it to your collection so you can find it later.</p>
+                        <Form method="POST">
+                            <input type="hidden" name="recipeJson" value={JSON.stringify(recipe)} />
+                            <input type="hidden" name="cuisine" value={cuisine} />
+                            <input type="hidden" name="mealType" value={mealType} />
+                            <button
+                                type="submit"
+                                className="px-6 py-2.5 bg-amber-500 hover:bg-amber-600 text-white rounded-lg text-sm font-semibold transition-colors"
+                            >
+                                Save recipe
+                            </button>
+                        </Form>
+                    </div>
+                ) : (
+                    <p className="text-sm text-gray-500">
+                        <Link to="/login" className="text-amber-600 hover:text-amber-700 font-medium hover:underline">Log in</Link> to save this recipe to your collection.
+                    </p>
+                )}
+            </div>
+
         </div>
     )
 }
