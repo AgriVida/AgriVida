@@ -85,6 +85,21 @@ export async function getRecipesByUserId(userId: string): Promise<Recipe[]> {
     return data.data as Recipe[]
 }
 
+export async function deleteRecipe(id: string, authorization: string, cookie: string): Promise<Status> {
+    const response = await fetch(`${process.env.REST_API_URL}/recipe/${encodeURIComponent(id)}`, {
+        method: 'DELETE',
+        headers: {
+            'Authorization': authorization,
+            'Cookie': cookie
+        }
+    })
+    const contentType = response.headers.get('content-type') ?? ''
+    if (!contentType.includes('application/json')) {
+        return {status: response.status, message: 'Failed to delete recipe — please try again.', data: null}
+    }
+    return await response.json() as Status
+}
+
 export async function postRecipe(recipe: Recipe, authorization: string, cookie: string): Promise<Status> {
     const response = await fetch(`${process.env.REST_API_URL}/recipe`, {
         method: 'POST',

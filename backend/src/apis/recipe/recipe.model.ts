@@ -106,6 +106,13 @@ export async function selectRecipesByIngredient(ingredient: string): Promise<Rec
 
 
 
+export async function deleteRecipeById(id: string, userId: string): Promise<string> {
+    await sql`
+        DELETE FROM recipe
+        WHERE id = ${id} AND user_id = ${userId}`
+    return 'Recipe deleted successfully'
+}
+
 export async function selectAllRecipes(): Promise<Recipe[]> {
     const rowList = await sql`SELECT r.id, r.user_id, r.calories, r.carbs, r.cook_time, r.cuisine, r.fat_content, r.image_url, r.instructions, r.ingredients, r.meal_category, r.prep_time, r.protein, r.servings, r.title, r.total_time
         FROM recipe r

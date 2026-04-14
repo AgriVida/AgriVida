@@ -176,6 +176,7 @@ export default function RecipeGeneration({loaderData}: Route.ComponentProps) {
                                 reviews={reviews[recipe.id] ?? []}
                                 index={i}
                                 username={usernameMap[recipe.userId]}
+                                userId={recipe.userId}
                             />
                         ))}
                     </div>

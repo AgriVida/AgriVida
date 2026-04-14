@@ -11,7 +11,7 @@ const CARD_BG = [
     "bg-teal-50",
 ]
 
-export function RecipeCard({ recipe, reviews, index = 0, username }: { recipe: Recipe; reviews: Review[]; index?: number; username?: string }) {
+export function RecipeCard({ recipe, reviews, index = 0, username, userId }: { recipe: Recipe; reviews: Review[]; index?: number; username?: string; userId?: string }) {
     const bg = CARD_BG[index % CARD_BG.length]
 
     const avgRating = reviews?.length
@@ -40,7 +40,13 @@ export function RecipeCard({ recipe, reviews, index = 0, username }: { recipe: R
                 <h3 className="font-semibold text-gray-900 text-sm leading-snug">{recipe.title}</h3>
 
                 {username && (
-                    <p className="text-xs text-gray-400">by {username}</p>
+                    userId ? (
+                        <Link to={`/friendprofile/${userId}`} className="text-xs text-gray-400 hover:text-amber-500 transition-colors">
+                            by {username}
+                        </Link>
+                    ) : (
+                        <p className="text-xs text-gray-400">by {username}</p>
+                    )
                 )}
 
                 {ingredientNames && (

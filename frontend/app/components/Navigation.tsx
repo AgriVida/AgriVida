@@ -61,7 +61,7 @@ export function Navigation({isLoggedIn}: NavigationProps) {
                                         className="block px-4 py-2 text-gray-700 hover:bg-gray-50"
                                         onClick={() => setAccountOpen(false)}
                                     >
-                                        Settings
+                                        View profile
                                     </a>
                                     <Form method="post" action="/logout">
                                         <button

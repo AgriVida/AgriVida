@@ -4,7 +4,7 @@ import {
     type Recipe,
     insertRecipe,
     recipeSchema, selectRecipeById, selectRecipesByUserId, selectRecipeByCuisineAndMealCategory,
-    selectRecipesByIngredient, selectAllRecipes
+    selectRecipesByIngredient, selectAllRecipes, deleteRecipeById
 } from './recipe.model.ts'
 import {serverErrorResponse, zodErrorResponse} from "../../utils/response.utils.ts";
 import type {Status} from "../../utils/interfaces/Status.ts";
@@ -129,6 +129,27 @@ export async function getAllRecipesController(request: Request, response: Respon
         const recipes: Recipe[] = await selectAllRecipes()
 
         response.json({status: 200, message: null, data: recipes})
+    } catch (error: any) {
+        console.error(error)
+        serverErrorResponse(response, error.message)
+    }
+}
+
+export async function deleteRecipeController(request: Request, response: Response): Promise<void> {
+    try {
+        const schema = z.object({id: z.uuidv7('Please provide a valid recipe id')})
+        const validationResult = schema.safeParse(request.params)
+        if (!validationResult.success) {
+            zodErrorResponse(response, validationResult.error)
+            return
+        }
+        const user = request.session?.user
+        if (!user) {
+            response.json({status: 401, message: 'Please login to delete a recipe', data: null})
+            return
+        }
+        const message = await deleteRecipeById(validationResult.data.id, user.id)
+        response.json({status: 200, message, data: null})
     } catch (error: any) {
         console.error(error)
         serverErrorResponse(response, error.message)

@@ -1,9 +1,12 @@
 import type { Route } from "./+types/accountset"
-import { data, Form, redirect, useActionData } from "react-router";
+import { data, Form, redirect, useActionData, Link, useSearchParams } from "react-router";
 import { getSession, commitSession } from "~/utils/session.server";
 import { fileStorage, getAvatarStorageKey } from "~/utils/image-storage.server";
 import { type FileUpload, parseFormData } from "@remix-run/form-data-parser";
 import { useEffect, useRef, useState } from "react";
+import { getRecipesByUserId, deleteRecipe } from "~/utils/models/recipe.model";
+import { getRecipeReviews } from "~/utils/models/review.model";
+import type { Recipe } from "~/utils/models/recipe.model";
 
 export function meta({}: Route.MetaArgs) {
     return [
@@ -18,8 +21,13 @@ export async function loader({ request }: Route.LoaderArgs) {
         return redirect("/login?redirectTo=/accountset");
     }
     const user = session.get("user")!;
-    const hasAvatar = await fileStorage.has(getAvatarStorageKey(user.id));
-    return { user, hasAvatar };
+    const [hasAvatar, recipes] = await Promise.all([
+        fileStorage.has(getAvatarStorageKey(user.id)),
+        getRecipesByUserId(user.id),
+    ]);
+    const reviewsMap = await getRecipeReviews(recipes);
+    const reviews = Object.fromEntries(reviewsMap);
+    return { user, hasAvatar, recipes, reviews };
 }
 
 export async function action({ request }: Route.ActionArgs) {
@@ -36,6 +44,16 @@ export async function action({ request }: Route.ActionArgs) {
         if (formData.get("intent") === "delete") {
             await fileStorage.remove(storageKey);
             return { success: true, message: "Profile picture deleted.", intent: "delete" };
+        }
+        if (formData.get("intent") === "deleteRecipe") {
+            const recipeId = formData.get("recipeId") as string;
+            const authorization = session.get("authorization")!;
+            const cookie = request.headers.get("Cookie") ?? "";
+            const result = await deleteRecipe(recipeId, authorization, cookie);
+            if (result.status === 200) {
+                return { success: true, message: "Recipe deleted.", intent: "deleteRecipe", recipeId };
+            }
+            return { error: result.message ?? "Failed to delete recipe.", intent: "deleteRecipe" };
         }
         return { error: "Unknown action.", intent: "unknown" };
     }
@@ -84,12 +102,11 @@ export async function action({ request }: Route.ActionArgs) {
     return { error: "Unknown action.", intent: "unknown" };
 }
 
-// ── Sidebar nav button ────────────────────────────────────────
-function SidebarItem({ label, active, onClick }: { label: string; active: boolean; onClick: () => void }) {
+// ── Sidebar nav item ─────────────────────────────────────────
+function SidebarItem({ label, active, href }: { label: string; active: boolean; href: string }) {
     return (
-        <button
-            type="button"
-            onClick={onClick}
+        <Link
+            to={href}
             className={[
                 "w-full text-left px-4 py-2 rounded-lg border text-sm transition-colors",
                 active
@@ -98,7 +115,7 @@ function SidebarItem({ label, active, onClick }: { label: string; active: boolea
             ].join(" ")}
         >
             {label}
-        </button>
+        </Link>
     );
 }
 
@@ -131,11 +148,14 @@ function FieldRow({
     );
 }
 
+const CARD_BG = ["bg-green-50","bg-amber-50","bg-blue-50","bg-pink-50","bg-purple-50","bg-teal-50"];
+
 export default function AccountSet({ loaderData }: Route.ComponentProps) {
-    const { user, hasAvatar } = loaderData;
+    const { user, hasAvatar, recipes, reviews } = loaderData;
     const actionData = useActionData<typeof action>();
 
-    const [activeSection, setActiveSection] = useState<"profile" | "security">("profile");
+    const [searchParams] = useSearchParams();
+    const activeSection = (searchParams.get("tab") ?? "profile") as "profile" | "security" | "recipes";
     const [editingBio, setEditingBio] = useState(false);
     const [avatarVersion, setAvatarVersion] = useState(1);
     const [showAvatar, setShowAvatar] = useState(hasAvatar);
@@ -207,8 +227,9 @@ export default function AccountSet({ loaderData }: Route.ComponentProps) {
             <aside className="md:w-52 shrink-0">
                 <p className="text-xs font-semibold tracking-widest text-gray-400 uppercase mb-3 px-1">Settings</p>
                 <div className="flex flex-col gap-2">
-                    <SidebarItem label="Profile"  active={activeSection === "profile"}  onClick={() => setActiveSection("profile")} />
-                    <SidebarItem label="Change Password" active={activeSection === "security"} onClick={() => setActiveSection("security")} />
+                    <SidebarItem label="Profile"          active={activeSection === "profile"}  href="/accountset" />
+                    <SidebarItem label="Change Password"  active={activeSection === "security"} href="/accountset?tab=security" />
+                    <SidebarItem label={`Saved Recipes${recipes.length ? ` (${recipes.length})` : ""}`} active={activeSection === "recipes"} href="/accountset?tab=recipes" />
                 </div>
             </aside>
 
@@ -399,6 +420,97 @@ export default function AccountSet({ loaderData }: Route.ComponentProps) {
                                 </div>
                             </div>
                         </Form>
+                    </>
+                )}
+
+                {/* ════════════ SAVED RECIPES SECTION ════════════ */}
+                {activeSection === "recipes" && (
+                    <>
+                        <h1 className="text-2xl font-bold text-gray-900">Saved Recipes</h1>
+                        <p className="text-sm text-gray-500 mt-1">Recipes you've created and saved.</p>
+
+                        {actionData && "intent" in actionData && actionData.intent === "deleteRecipe" && (
+                            <p className={`mt-3 text-sm ${"error" in actionData ? "text-red-600" : "text-green-600"}`}>
+                                {"error" in actionData ? actionData.error : (actionData as any).message}
+                            </p>
+                        )}
+
+                        {recipes.length === 0 ? (
+                            <div className="mt-10 text-center border border-gray-200 rounded-2xl p-10 bg-white">
+                                <p className="text-sm text-gray-400">You haven't saved any recipes yet.</p>
+                                <Link
+                                    to="/#upload"
+                                    className="mt-3 inline-block text-sm text-amber-600 hover:text-amber-700 font-medium hover:underline"
+                                >
+                                    Upload a photo to get started →
+                                </Link>
+                            </div>
+                        ) : (
+                            <div className="mt-6 grid grid-cols-1 sm:grid-cols-2 gap-4">
+                                {recipes.map((recipe: Recipe, i: number) => {
+                                    const bg = CARD_BG[i % CARD_BG.length];
+                                    const reviewList: any[] = reviews[recipe.id] ?? [];
+                                    const avgRating = reviewList.length
+                                        ? (reviewList.reduce((s: number, r: any) => s + r.rating, 0) / reviewList.length).toFixed(1)
+                                        : null;
+                                    const ingredientNames = recipe.ingredients.slice(0, 4).map((ing: any) => ing.name).join(", ");
+
+                                    return (
+                                        <div key={recipe.id} className="border border-gray-200 rounded-2xl overflow-hidden bg-white flex flex-col">
+                                            <div className={`${bg} h-36 flex items-center justify-center relative`}>
+                                                {recipe.imageUrl ? (
+                                                    <img src={recipe.imageUrl} alt={recipe.title} className="h-full w-full object-cover" />
+                                                ) : (
+                                                    <span className="text-4xl" aria-hidden>🍽️</span>
+                                                )}
+                                            </div>
+                                            <div className="px-4 pt-3 pb-4 flex flex-col gap-1.5 flex-1">
+                                                <h3 className="font-semibold text-gray-900 text-sm leading-snug">{recipe.title}</h3>
+                                                <p className="text-xs text-gray-400 leading-snug line-clamp-1">{ingredientNames}</p>
+                                                <div className="flex flex-wrap gap-1.5 mt-0.5">
+                                                    {recipe.mealCategory && (
+                                                        <span className="px-2 py-0.5 rounded-full bg-gray-100 text-gray-600 text-xs font-medium">
+                                                            {recipe.mealCategory.toLowerCase()}
+                                                        </span>
+                                                    )}
+                                                    {recipe.cookTime && (
+                                                        <span className="px-2 py-0.5 rounded-full bg-gray-100 text-gray-600 text-xs font-medium">
+                                                            {recipe.cookTime}
+                                                        </span>
+                                                    )}
+                                                </div>
+                                                <div className="flex items-center justify-between mt-auto pt-2">
+                                                    {avgRating ? (
+                                                        <span className="text-xs text-gray-400">★ {avgRating} ({reviewList.length})</span>
+                                                    ) : (
+                                                        <span className="text-xs text-gray-300">No reviews yet</span>
+                                                    )}
+                                                    <div className="flex items-center gap-3">
+                                                        <Link
+                                                            to={`/recipe/${recipe.id}`}
+                                                            className="text-xs font-medium text-amber-500 hover:text-amber-600 transition-colors"
+                                                        >
+                                                            View →
+                                                        </Link>
+                                                        <Form method="post">
+                                                            <input type="hidden" name="intent" value="deleteRecipe" />
+                                                            <input type="hidden" name="recipeId" value={recipe.id} />
+                                                            <button
+                                                                type="submit"
+                                                                onClick={e => { if (!confirm(`Delete "${recipe.title}"?`)) e.preventDefault() }}
+                                                                className="text-xs font-medium text-red-400 hover:text-red-600 transition-colors"
+                                                            >
+                                                                Delete
+                                                            </button>
+                                                        </Form>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    );
+                                })}
+                            </div>
+                        )}
                     </>
                 )}
 

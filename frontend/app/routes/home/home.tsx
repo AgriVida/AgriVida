@@ -263,7 +263,7 @@ export default function Home({loaderData}: Route.ComponentProps) {
                 <p className="text-xs font-semibold tracking-widest text-gray-400 uppercase mb-10">Top recipes</p>
                 <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
                     {recipes.map((recipe: Recipe, i: number) => (
-                        <RecipeCard recipe={recipe} key={recipe.id} reviews={reviews[recipe.id]} index={i} username={usernameMap[recipe.userId]} />
+                        <RecipeCard recipe={recipe} key={recipe.id} reviews={reviews[recipe.id]} index={i} username={usernameMap[recipe.userId]} userId={recipe.userId} />
                     ))}
                 </div>
             </section>

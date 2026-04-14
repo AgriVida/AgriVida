@@ -3,7 +3,7 @@ import {
     getAllRecipesController,
     getRecipeByCuisineController,
     getRecipeByIdController, getRecipesByIngredientController, getRecipesByUserIdController,
-    postRecipeController,
+    postRecipeController, deleteRecipeController,
 
 } from './recipe.controller.ts'
 import {isLoggedInController } from '../../utils/controllers/is-logged-in.controller.ts'
@@ -17,6 +17,7 @@ router.route('/')
 
 router.route('/:id')
     .get(getRecipeByIdController)
+    .delete(isLoggedInController, deleteRecipeController)
 
 router.route('/userId/:userId')
     .get(getRecipesByUserIdController)

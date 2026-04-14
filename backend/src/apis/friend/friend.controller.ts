@@ -1,7 +1,15 @@
 import type {Request, Response} from "express";
 import {serverErrorResponse, zodErrorResponse} from "../../utils/response.utils.ts";
 import type {Status} from "../../utils/interfaces/Status.ts";
-import {friendSchema, insertFriend, selectAcceptedFriendsByUserId, selectPendingRequestsByUserId, updateFriendAccepted, deleteFriend} from "./friend.model.ts";
+import {
+    friendSchema,
+    insertFriend,
+    selectAcceptedFriendsByUserId,
+    selectPendingRequestsByUserId,
+    updateFriendAccepted,
+    deleteFriend,
+    type Friend
+} from "./friend.model.ts";
 import {selectPublicUserByEmail} from "../user/user.model.ts";
 import {z} from "zod/v4";
 
@@ -16,8 +24,8 @@ export async function getFriendsController(request: Request, response: Response)
             return
         }
 
-        const friends = await selectAcceptedFriendsByUserId(user.id)
-        const pendingRequests = await selectPendingRequestsByUserId(user.id)
+        const friends: Friend[] = await selectAcceptedFriendsByUserId(user.id)
+        const pendingRequests: Friend[] = await selectPendingRequestsByUserId(user.id)
 
         const status: Status = {
             status: 200,

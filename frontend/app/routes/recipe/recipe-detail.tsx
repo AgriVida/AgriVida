@@ -86,9 +86,10 @@ export default function RecipeDetail({loaderData, actionData}: Route.ComponentPr
             {/* ── Back button ── */}
             <Link
                 to="/meals"
+                onClick={e => { e.preventDefault(); history.back() }}
                 className="inline-flex items-center gap-1.5 px-4 py-2 border border-gray-300 rounded-lg text-sm font-medium hover:bg-gray-50 transition-colors mb-8"
             >
-                ← Back to meals
+                ← Back
             </Link>
 
             {/* ── Hero: two-column ── */}
