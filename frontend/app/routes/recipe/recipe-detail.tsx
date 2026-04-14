@@ -8,6 +8,7 @@ import {Rating, RatingStar} from "flowbite-react";
 import type {Route} from "./+types/recipe-detail";
 import {Link} from "react-router";
 import {useRef, useState} from "react";
+import {ShareModal} from "~/components/ShareModal";
 
 const resolver = zodResolver(ReviewFormSchema)
 
@@ -70,6 +71,7 @@ export default function RecipeDetail({loaderData, actionData}: Route.ComponentPr
     const hasReviewed = user ? reviews.some((r: Review) => r.userId === user.id) : false
 
     const [hoverRating, setHoverRating] = useState(0)
+    const [showShare, setShowShare] = useState(false)
 
     const {register, handleSubmit, watch, setValue, formState: {errors}} = useRemixForm({
         resolver,
@@ -162,6 +164,13 @@ export default function RecipeDetail({loaderData, actionData}: Route.ComponentPr
                             className="px-5 py-2.5 border border-gray-300 rounded-lg text-sm font-medium hover:bg-gray-50 transition-colors"
                         >
                             Print
+                        </button>
+                        <button
+                            type="button"
+                            onClick={() => setShowShare(true)}
+                            className="px-5 py-2.5 bg-amber-500 hover:bg-amber-600 text-white rounded-lg text-sm font-medium transition-colors"
+                        >
+                            Share
                         </button>
                     </div>
                 </div>
@@ -393,6 +402,7 @@ export default function RecipeDetail({loaderData, actionData}: Route.ComponentPr
                 )}
             </div>
 
+            {showShare && <ShareModal onClose={() => setShowShare(false)} />}
         </div>
     )
 }

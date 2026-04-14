@@ -6,6 +6,7 @@ import {getSession} from "~/utils/session.server";
 import type {Route} from "./+types/ai-recipe";
 import {Link} from "react-router";
 import {useRef, useState} from "react";
+import {ShareModal} from "~/components/ShareModal";
 
 function extractJson(text: string): string {
     const match = text.match(/```(?:json)?\s*([\s\S]*?)\s*```/)
@@ -127,6 +128,7 @@ export default function AiRecipe({loaderData, actionData}: Route.ComponentProps)
     const [servings, setServings] = useState(baseServings)
     const [cookMode, setCookMode] = useState(false)
     const [currentStep, setCurrentStep] = useState(0)
+    const [showShare, setShowShare] = useState(false)
     const methodRef = useRef<HTMLDivElement>(null)
 
     const instructions = recipe.instructions ?? []
@@ -209,6 +211,13 @@ export default function AiRecipe({loaderData, actionData}: Route.ComponentProps)
                             className="px-5 py-2.5 border border-gray-300 rounded-lg text-sm font-medium hover:bg-gray-50 transition-colors"
                         >
                             Print
+                        </button>
+                        <button
+                            type="button"
+                            onClick={() => setShowShare(true)}
+                            className="px-5 py-2.5 bg-amber-500 hover:bg-amber-600 text-white rounded-lg text-sm font-medium transition-colors"
+                        >
+                            Share
                         </button>
                     </div>
                 </div>
@@ -369,6 +378,7 @@ export default function AiRecipe({loaderData, actionData}: Route.ComponentProps)
                 )}
             </div>
 
+            {showShare && <ShareModal onClose={() => setShowShare(false)} />}
         </div>
     )
 }
