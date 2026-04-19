@@ -36,12 +36,28 @@ async function insertTestHub() {
   return data;
 }
 
+const TEST_FARMER_PHONE = "+15052267853";
+
 async function insertTestFarmer(suffix: string, lat: number, lng: number) {
+  // farmers.phone has a UNIQUE constraint, but we only have one verified
+  // Twilio trial destination to send to. Clear any prior row with this phone
+  // (and its FK-dependent notification_log rows) before inserting.
+  const { data: priorFarmers } = await supabase
+    .from("farmers")
+    .select("id")
+    .eq("phone", TEST_FARMER_PHONE);
+  const priorIds = (priorFarmers ?? []).map((f) => f.id);
+  if (priorIds.length) {
+    await supabase.from("notification_log").delete().in("farmer_id", priorIds);
+    await supabase.from("route_responses").delete().in("farmer_id", priorIds);
+    await supabase.from("farmers").delete().in("id", priorIds);
+  }
+
   const { data, error } = await supabase
     .from("farmers")
     .insert({
       name: `Test Farmer ${suffix} ${TEST_TAG}`,
-      phone: `+1555000${suffix.padStart(4, "0")}`,
+      phone: TEST_FARMER_PHONE,
       address_text: `Test Address ${suffix}`,
       latitude: lat,
       longitude: lng,
@@ -129,9 +145,7 @@ describe("PATCH /api/routes/:id/publish — integration", () => {
 
     const farmerLog = logs!.find((l) => l.farmer_id === farmer.id);
     expect(farmerLog).toBeDefined();
-    expect(farmerLog!.status).toBe(
-      process.env.TWILIO_ACCOUNT_SID ? "sent" : "failed",
-    );
+    expect(farmerLog!.status).toBe("sent");
   });
 
   it("publishes route with 0 notifications when no farmers are nearby", async () => {
@@ -186,5 +200,46 @@ describe("PATCH /api/routes/:id/publish — integration", () => {
     expect(logs!.length).toBe(1);
     expect(logs![0].route_id).toBe(route.id);
     expect(logs![0].farmer_id).toBe(farmer.id);
+  });
+
+  it("proximity filter: notifies nearby farmer, skips distant farmer", async () => {
+    // Near farmer uses the verified phone (will actually receive SMS)
+    const nearFarmer = await insertTestFarmer(
+      "near",
+      ALBUQUERQUE_LAT + FARMER_OFFSET,
+      ALBUQUERQUE_LNG + FARMER_OFFSET,
+    );
+
+    // Distant farmer ~700 miles away (Denver-ish). Should NOT be matched, so
+    // SMS is never attempted — its unverified phone doesn't matter.
+    const { data: farFarmer, error: farErr } = await supabase
+      .from("farmers")
+      .insert({
+        name: `Test Farmer far ${TEST_TAG}`,
+        phone: "+15005550010", // unverified; proximity filter must exclude this row
+        address_text: "Far Away",
+        latitude: 39.7392,
+        longitude: -104.9903,
+      })
+      .select()
+      .single();
+    if (farErr) throw new Error(`Failed to insert far farmer: ${farErr.message}`);
+    createdFarmerIds.push(farFarmer.id);
+
+    const route = await insertTestRoute(hub.id, ALBUQUERQUE_LAT, ALBUQUERQUE_LNG);
+
+    const response = await callPublish(route.id);
+    expect(response.status).toBe(200);
+    const json = await response.json();
+    expect(json.farmers_notified).toBe(1);
+
+    const { data: logs } = await supabase
+      .from("notification_log")
+      .select("*")
+      .eq("route_id", route.id);
+    expect(logs!.length).toBe(1);
+    expect(logs![0].farmer_id).toBe(nearFarmer.id);
+    expect(logs![0].status).toBe("sent");
+    expect(logs!.find((l) => l.farmer_id === farFarmer.id)).toBeUndefined();
   });
 });
