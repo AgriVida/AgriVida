@@ -68,10 +68,55 @@ This MVP is intentionally minimal: no authentication, no crop listings, no deliv
 
 ### Data Model
 
-- **Farmers table**: id, name, phone (unique), latitude, longitude, address_text, opted_out (boolean, default false), created_at, updated_at
-- **Hubs table**: id, name, phone, email, created_at
-- **Routes table**: id, hub_id (FK), title, start_lat, start_lng, end_lat, end_lng, route_polyline (text, encoded polyline), start_time, end_time, notes, published (boolean), created_at
-- **NotificationLog table**: id, route_id (FK), farmer_id (FK), status (sent/failed/opted_out), twilio_sid, error_message, created_at
+**Farmers**
+| Field | Type | Notes |
+|---|---|---|
+| id | uuid | Primary key |
+| name | text | Farmer's name |
+| phone | text | Unique, E.164 format |
+| latitude | float8 | Geocoded from address |
+| longitude | float8 | Geocoded from address |
+| address_text | text | Raw address or zip entered by farmer |
+| opted_out | boolean | Default false, set via STOP/UNSTOP |
+| created_at | timestamptz | |
+| updated_at | timestamptz | |
+
+**Hubs**
+| Field | Type | Notes |
+|---|---|---|
+| id | uuid | Primary key |
+| name | text | Hub display name |
+| phone | text | Hub contact phone |
+| email | text | Hub contact email |
+| created_at | timestamptz | |
+
+**Routes**
+| Field | Type | Notes |
+|---|---|---|
+| id | uuid | Primary key |
+| hub_id | uuid | FK → Hubs.id |
+| title | text | Route title |
+| start_lat | float8 | Start point latitude |
+| start_lng | float8 | Start point longitude |
+| end_lat | float8 | End point latitude |
+| end_lng | float8 | End point longitude |
+| route_polyline | text | Encoded polyline from Google Routes API |
+| start_time | timestamptz | Route start date/time |
+| end_time | timestamptz | Route end date/time |
+| notes | text | Optional hub notes |
+| published | boolean | Default false |
+| created_at | timestamptz | |
+
+**NotificationLog**
+| Field | Type | Notes |
+|---|---|---|
+| id | uuid | Primary key |
+| route_id | uuid | FK → Routes.id |
+| farmer_id | uuid | FK → Farmers.id |
+| status | text | `sent` / `failed` / `opted_out` |
+| twilio_sid | text | Twilio message SID |
+| error_message | text | Null if successful |
+| created_at | timestamptz | |
 
 - Hub phone and email are stored on the Hub record and included in SMS messages so farmers contact the hub directly.
 
@@ -140,5 +185,3 @@ The following features are anticipated for post-MVP iterations and should not be
 
 - **Twilio costs**: Each SMS costs money. Monitor usage during testing to avoid unexpected bills during prototype validation.
 - **Google Maps API costs**: Route generation and geocoding both incur per-request charges. Consider caching geocoding results for repeated addresses.
-- **Vercel serverless timeout**: SMS notification batches for large farmer populations could exceed Vercel's 10-second function timeout. If this occurs, batch processing with a queue (e.g., Vercel Cron or Inngest) may be needed.
-- **SQLite → PostgreSQL migration**: Using Supabase (hosted PostgreSQL) for both dev and prod eliminates the SQLite/Postgres dialect mismatch entirely. Supabase CLI provides local development with the same Postgres instance.
