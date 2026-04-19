@@ -9,7 +9,8 @@ FridgeToFarm is a platform that bridges this gap by connecting farmers to delive
 1. **Hub operators** plan delivery routes using a GIS-like map interface, setting start/end points and route details.
 2. **Farmers** register with just their name, phone number, and location — no login, no dashboard, no tech burden.
 3. When a hub publishes a route, the system decodes the route polyline, identifies all farmers within 10 miles of any point along the route path, and sends them an SMS notification with the hub's contact information.
-4. Farmers contact the hub directly (by phone or email) to coordinate pickup — the platform facilitates discovery, not logistics.
+4. Farmers tap a link in the SMS to open a pre-filled response form on their phone, where they choose crop pickup, compost pickup, or both — no login required.
+5. Farmers can also contact the hub directly (by phone or email) to coordinate — the platform facilitates discovery, not logistics.
 
 This MVP is intentionally minimal: no authentication, no crop listings, no delivery tracking. The goal is to validate the core discovery loop: a hub publishes a route, and at least one farmer receives the notification and makes contact.
 
@@ -35,6 +36,9 @@ This MVP is intentionally minimal: no authentication, no crop listings, no deliv
 14. As a farmer, I want to reply STOP to an SMS to unsubscribe from future notifications, so that I can opt out if I no longer want to receive messages.
 15. As a farmer, I want to reply UNSTOP to resubscribe to notifications, so that I can rejoin if I opted out by mistake.
 16. As a farmer outside the 10-mile range of a route's full path, I do not want to receive an SMS about that route, so that I only get relevant notifications.
+17. As a farmer, I want to tap a link in the route notification SMS to open a form on my phone, so that I can indicate whether I want crop pickup, compost pickup, or both.
+18. As a farmer, I want the response form to already show my name and the route details, so that I only have to choose my response type and optionally add notes.
+19. As a farmer, I want to see the hub's contact information on the response form, so that I can call or email them directly if I prefer.
 
 ## Implementation Decisions
 
@@ -63,7 +67,8 @@ This MVP is intentionally minimal: no authentication, no crop listings, no deliv
 ### SMS Notifications
 
 - **Provider**: Twilio API for all SMS sending and receiving.
-- **Format**: `[Hub Name] has a delivery route near you on [Date]. Contact [phone/email] to coordinate pickup.`
+- **Format**: `[Hub Name] has a delivery route near you on [Date]. Tap to respond: [URL]. Questions? Contact [phone/email].`
+- **Response URL**: Each SMS includes a route-specific link: `{BASE_URL}/respond?route={route_id}&farmer={farmer_id}`. The respond page is a pre-filled form showing the farmer's name, route details (hub name, date, times, notes), and hub contact info. The farmer selects a response type (crop pickup, compost pickup, or both) and optionally adds notes, then submits.
 - **Opt-out**: Twilio STOP/UNSTOP handling via webhook endpoint. Farmers can text STOP to unsubscribe and UNSTOP to resubscribe. This is required for TCPA compliance.
 - **Error handling**: If an individual SMS send fails, the error is logged but does not block remaining notifications in the batch.
 
@@ -119,7 +124,20 @@ This MVP is intentionally minimal: no authentication, no crop listings, no deliv
 | error_message | text | Null if successful |
 | created_at | timestamptz | |
 
+**RouteResponses**
+| Field | Type | Notes |
+|---|---|---|
+| id | uuid | Primary key |
+| route_id | uuid | FK → Routes.id |
+| farmer_id | uuid | FK → Farmers.id |
+| response_type | text | `crop_pickup` / `compost_pickup` / `both` |
+| notes | text | Optional — farmer details (what crops, how much compost, etc.) |
+| status | text | `pending` / `confirmed` / `cancelled` |
+| created_at | timestamptz | |
+| updated_at | timestamptz | |
+
 - Hub phone and email are stored on the Hub record and included in SMS messages so farmers contact the hub directly.
+- RouteResponses tracks farmer opt-in per route. A farmer taps the link in the SMS, fills out the pre-filled response form (choosing crop pickup, compost pickup, or both), and submits. The form submission creates a RouteResponse row. Hubs view opted-in farmers per route to coordinate logistics.
 
 ### Pre-Seed Data
 
@@ -132,6 +150,8 @@ This MVP is intentionally minimal: no authentication, no crop listings, no deliv
 - `POST /api/routes` — Create a new route (hub operator)
 - `PATCH /api/routes/:id/publish` — Publish a route, trigger proximity matching and SMS notifications
 - `GET /api/routes` — List routes for the hub
+- `GET /respond` — Farmer response form page (pre-filled via route_id + farmer_id query params). Shows route details, farmer name, hub contact info. No auth required.
+- `POST /api/responses` — Submit a route response (creates RouteResponse row)
 - `POST /api/twilio/sms` — Twilio webhook for incoming SMS (STOP/UNSTOP handling)
 - `GET /api/twilio/status` — Twilio status callback webhook for delivery receipts
 
@@ -153,7 +173,6 @@ These items are explicitly excluded from the MVP prototype:
 - **Audit trails** — No activity logging beyond the NotificationLog table.
 - **Contract management** — No agreement/terms system.
 - **Admin panel** — Hub accounts are pre-seeded, no admin UI.
-- **Return-trip compost pickup** — Logistics for return trips not included.
 - **Automated tests** — Manual validation only for the prototype.
 - **PostGIS** — Using Haversine formula with lat/lng columns instead of PostGIS geo types for simplicity.
 - **Dashboard/analytics** — No reporting interface for hubs or farmers.
@@ -162,7 +181,7 @@ These items are explicitly excluded from the MVP prototype:
 
 ### Design Principles
 
-- **Farmer-first minimalism**: The farmer's entire interaction is: register once, receive SMS, call the hub. No account, no dashboard, no app download.
+- **Farmer-first minimalism**: The farmer's entire interaction is: register once, receive SMS, tap link, choose response type. No account, no dashboard, no app download.
 - **Discovery over logistics**: The platform connects farmers to hubs. Actual pickup coordination happens off-platform (phone/email).
 - **Prototype validation**: This MVP exists to answer one question: "If a hub publishes a route, will a farmer receive the notification and make contact?" Everything else is deferred.
 
@@ -175,7 +194,6 @@ The following features are anticipated for post-MVP iterations and should not be
 - Farmer account management and notification preferences
 - Receipt and record keeping system
 - Route transparency dashboard for farmers
-- Compost return-trip pickup logistics
 - Farmer crop availability listings
 - Audit trails and activity logging
 - Vendor reputation and whitelist system
