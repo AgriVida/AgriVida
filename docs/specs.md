@@ -65,7 +65,7 @@ A hub operator creates a delivery route by:
 
 When a hub publishes a route:
 
-1. The system identifies all registered farms within a **10-mile radius** of the route path
+1. The system identifies all registered farms within **10 miles of any point along the route** (by decoding the route polyline and checking Haversine distance from each farm to each polyline point)
 2. Each matching farmer receives an SMS (via Twilio) containing:
    - Hub name
    - Date of the route
@@ -76,9 +76,9 @@ When a hub publishes a route:
 > `[Hub Name] has a delivery route near you on [Date]. Contact [phone/email] to coordinate pickup.`
 
 **Acceptance criteria:**
-- Farmers within 10 miles of a published route receive an SMS
+- Farmers within 10 miles of the route path receive an SMS
 - SMS contains hub name, date, and contact details
-- Farmers outside the radius do not receive the SMS
+- Farmers outside the 10-mile range of the route path do not receive the SMS
 
 #### FR-3: Farmer Self-Registration
 
@@ -147,7 +147,7 @@ The prototype validates the core discovery loop if:
 4. System generates route path between points
 5. Enter title, start time, end time, and notes
 6. Click "Publish Route"
-7. System identifies farmers within 10 miles of route path
+7. System identifies farmers within 10 miles of any point along the route path
 8. System sends SMS to matching farmers
 9. Confirmation: "Route published. X farmers notified."
 

@@ -8,7 +8,7 @@ FridgeToFarm is a platform that bridges this gap by connecting farmers to delive
 
 1. **Hub operators** plan delivery routes using a GIS-like map interface, setting start/end points and route details.
 2. **Farmers** register with just their name, phone number, and location — no login, no dashboard, no tech burden.
-3. When a hub publishes a route, the system automatically identifies farmers within a 10-mile radius of the route's start or end points and sends them an SMS notification with the hub's contact information.
+3. When a hub publishes a route, the system decodes the route polyline, identifies all farmers within 10 miles of any point along the route path, and sends them an SMS notification with the hub's contact information.
 4. Farmers contact the hub directly (by phone or email) to coordinate pickup — the platform facilitates discovery, not logistics.
 
 This MVP is intentionally minimal: no authentication, no crop listings, no delivery tracking. The goal is to validate the core discovery loop: a hub publishes a route, and at least one farmer receives the notification and makes contact.
@@ -24,7 +24,6 @@ This MVP is intentionally minimal: no authentication, no crop listings, no deliv
 5. As a hub operator, I want to enter a title, start time, end time, and notes for my route, so that farmers know when and why the truck is coming.
 6. As a hub operator, I want to click "Publish Route" and see a confirmation message stating how many farmers were notified, so that I know my route is active.
 7. As a hub operator, I want to view my previously created routes, so that I can reference past deliveries.
-8. As a hub operator (pre-seeded account), I want to access the route planner without creating an account or logging in, so that I can demonstrate the prototype quickly.
 
 ### Farmer Stories
 
@@ -35,25 +34,7 @@ This MVP is intentionally minimal: no authentication, no crop listings, no deliv
 13. As a farmer, I want the SMS to include the hub's name, the delivery date, and the hub's phone number and/or email, so that I can contact them directly without using the platform.
 14. As a farmer, I want to reply STOP to an SMS to unsubscribe from future notifications, so that I can opt out if I no longer want to receive messages.
 15. As a farmer, I want to reply UNSTOP to resubscribe to notifications, so that I can rejoin if I opted out by mistake.
-16. As a farmer who registers with the same phone number, I want my existing record to be updated rather than duplicated, so that my information stays current.
-17. As a farmer outside the 10-mile radius of a route, I do not want to receive an SMS about that route, so that I only get relevant notifications.
-
-### SMS/System Stories
-
-18. As the system, I want to geocode farmer addresses and zip codes into latitude/longitude coordinates, so that I can perform proximity calculations.
-19. As the system, I want to calculate which registered farms fall within a 10-mile radius of a route's start point or end point, so that I can target the right farmers for notification.
-20. As the system, I want to send a formatted SMS via Twilio to each matching farmer, so that notifications are delivered reliably.
-21. As the system, I want to process STOP/UNSTOP replies from farmers via Twilio webhook, so that opt-out preferences are respected in real time.
-22. As the system, I want to respect farmer opt-out status when sending notifications, so that unsubscribed farmers never receive unwanted messages.
-23. As the system, I want to pre-seed at least one hub account in the database, so that the prototype has demo data available immediately.
-
-### Edge Case Stories
-
-24. As a farmer with an invalid or unmappable address, I want to see a clear error message, so that I know my registration didn't work and I can try again.
-25. As a farmer registering from a location that cannot be geocoded, I want helpful guidance, so that I can provide a valid address or zip code.
-26. As a hub operator, if no farmers are within 10 miles of my route, I want to see a message stating "0 farmers notified," so that I know the route is published but no one was reached.
-27. As a farmer who has opted out (STOP), I want confirmation that I will no longer receive messages, so that I trust the opt-out mechanism works.
-28. As the system, if Twilio SMS delivery fails for a specific number, I want to log the failure without blocking the rest of the notifications, so that one bad phone number doesn't stop all SMS sends.
+16. As a farmer outside the 10-mile range of a route's full path, I do not want to receive an SMS about that route, so that I only get relevant notifications.
 
 ## Implementation Decisions
 
@@ -67,8 +48,10 @@ This MVP is intentionally minimal: no authentication, no crop listings, no deliv
 
 ### Proximity Matching
 
-- Farmers are matched to routes using a **10-mile radius around the route's start point AND end point** (not the route polyline). This is simpler to implement and sufficient for prototype validation. A farm within 10 miles of EITHER the start or end point is notified.
-- Distance calculation uses the **Haversine formula** applied to geocoded lat/lng coordinates stored in the database. No PostGIS extension required at this stage.
+- Farmers are matched to routes using a **10-mile Haversine distance from the route's decoded polyline**. When a hub publishes a route, the system decodes the Google Maps encoded polyline into lat/lng points, loads all registered farmers into memory, and checks each farmer against every polyline point using the Haversine formula. A farm within 10 miles of **any point along the route path** is notified.
+- This approach covers the full route — not just start/end points — ensuring farms along the middle of the route are notified. At MVP scale (tens to low hundreds of farmers, ~100-500 polyline points), this computation runs in milliseconds with no spatial index required.
+- The encoded polyline is already returned by the Google Maps Routes API when creating the route, so no additional API calls are needed.
+- The `@mapbox/polyline` library decodes the polyline server-side. Distance calculation uses the **Haversine formula** on geocoded lat/lng coordinates. No PostGIS extension required.
 
 ### Map & Geocoding
 
@@ -110,7 +93,7 @@ This MVP is intentionally minimal: no authentication, no crop listings, no deliv
 
 - **No automated tests for the MVP prototype.** The success criteria are manual validation: (1) a hub can create and publish a route, and (2) at least one farmer receives an SMS notification.
 - Testing will be performed manually during development and via the acceptance criteria defined in the spec.
-- Post-prototype, test coverage should prioritize the **Proximity Matching Module** (Haversine distance calculations, radius filtering, edge cases like null coordinates) and the **SMS Module** (message formatting, opt-out compliance, error handling).
+- Post-prototype, test coverage should prioritize the **Proximity Matching Module** (Haversine distance calculations, polyline decoding, point-to-route matching, edge cases like null coordinates) and the **SMS Module** (message formatting, opt-out compliance, error handling).
 
 ## Out of Scope
 
@@ -125,7 +108,6 @@ These items are explicitly excluded from the MVP prototype:
 - **Contract management** — No agreement/terms system.
 - **Admin panel** — Hub accounts are pre-seeded, no admin UI.
 - **Return-trip compost pickup** — Logistics for return trips not included.
-- **Route polyline proximity matching** — Using start/end point radius instead of full polyline buffer for simplicity.
 - **Automated tests** — Manual validation only for the prototype.
 - **PostGIS** — Using Haversine formula with lat/lng columns instead of PostGIS geo types for simplicity.
 - **Dashboard/analytics** — No reporting interface for hubs or farmers.
@@ -153,7 +135,6 @@ The following features are anticipated for post-MVP iterations and should not be
 - Vendor reputation and whitelist system
 - Contract management (one-click term acceptance)
 - Quality tracking (thumbs up/down at delivery)
-- Full polyline buffer proximity matching (upgrade from start/end point radius)
 
 ### Technical Risks
 
