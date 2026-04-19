@@ -30,9 +30,6 @@ export function Navbar() {
           <Link href="/routes" className="text-sm font-medium text-slate-700 hover:text-slate-950">
             Route Planning
           </Link>
-          <Link href="/auth/sign-in" className="text-sm font-medium text-slate-700 hover:text-slate-950">
-            Sign In
-          </Link>
         </nav>
 
       </div>

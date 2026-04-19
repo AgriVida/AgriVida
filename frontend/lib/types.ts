@@ -50,6 +50,15 @@ export type RouteScenario = {
       lng: number;
     };
   }>;
+  fertilizerPoints?: Array<{
+    id: string;
+    title: string;
+    label: string;
+    position: {
+      lat: number;
+      lng: number;
+    };
+  }>;
 };
 
 export type Driver = {

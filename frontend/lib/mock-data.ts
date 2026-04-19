@@ -191,6 +191,26 @@ export const routeScenarios: RouteScenario[] = [
         position: { lat: 35.687, lng: -105.9378 },
       },
     ],
+    fertilizerPoints: [
+      {
+        id: "fert-1",
+        label: "F1",
+        title: "La Montanita Co-op Compost Hub, Albuquerque, NM",
+        position: { lat: 35.1192, lng: -106.6087 },
+      },
+      {
+        id: "fert-2",
+        label: "F2",
+        title: "Bernalillo Soil Amendment Yard, Bernalillo, NM",
+        position: { lat: 35.3168, lng: -106.5511 },
+      },
+      {
+        id: "fert-3",
+        label: "F3",
+        title: "Santa Fe Fertility Drop, Santa Fe, NM",
+        position: { lat: 35.7068, lng: -105.9935 },
+      },
+    ],
   },
   {
     id: "scenario-2",
@@ -232,6 +252,20 @@ export const routeScenarios: RouteScenario[] = [
         position: { lat: 34.9763, lng: -106.7143 },
       },
     ],
+    fertilizerPoints: [
+      {
+        id: "fert-4",
+        label: "F1",
+        title: "South Valley Compost Transfer, Albuquerque, NM",
+        position: { lat: 35.0409, lng: -106.6782 },
+      },
+      {
+        id: "fert-5",
+        label: "F2",
+        title: "Rio Bravo Farm Input Depot, Albuquerque, NM",
+        position: { lat: 35.0111, lng: -106.6752 },
+      },
+    ],
   },
 ];
 
@@ -244,24 +278,6 @@ export const drivers: Driver[] = [
     vehicle: "Box Truck 12",
     phone: "(505) 555-0142",
     zone: "Albuquerque North",
-  },
-  {
-    id: "driver-2",
-    firstName: "Marcus",
-    lastName: "Reed",
-    avatarUrl: "https://i.pravatar.cc/120?img=15",
-    vehicle: "Sprinter Van 7",
-    phone: "(505) 555-0189",
-    zone: "Bernalillo Corridor",
-  },
-  {
-    id: "driver-3",
-    firstName: "Priya",
-    lastName: "Shah",
-    avatarUrl: "https://i.pravatar.cc/120?img=47",
-    vehicle: "Flatbed 4",
-    phone: "(505) 555-0107",
-    zone: "Santa Fe Delivery Loop",
   },
 ];
 
@@ -290,7 +306,7 @@ export const driverRouteAssignments: DriverRouteAssignment[] = [
   },
   {
     id: "assignment-3",
-    driverId: "driver-2",
+    driverId: "driver-1",
     routeTitle: "Midtown Prepared Food Loop",
     pickupSource: "Green Bowl Kitchen",
     destination: "Valley Soil Cooperative",
@@ -298,16 +314,5 @@ export const driverRouteAssignments: DriverRouteAssignment[] = [
     material: "8 bins ready for pickup and sorting",
     notes: "Capture a photo of the sealed bins before leaving the site.",
     status: "In Progress",
-  },
-  {
-    id: "assignment-4",
-    driverId: "driver-3",
-    routeTitle: "Santa Fe Fertilizer Delivery",
-    pickupSource: "Buffalo Thunder Processing Yard",
-    destination: "Santa Fe Greenhouse Network",
-    pickupWindow: "Tomorrow · 8:00 AM - 10:00 AM",
-    material: "2 pallets of finished fertilizer",
-    notes: "Unload at the east gate and submit final quality check photos.",
-    status: "Completed",
   },
 ];

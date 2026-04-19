@@ -1,7 +1,7 @@
 "use client";
 
 import Image from "next/image";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import type { Driver, DriverRouteAssignment, DriverRouteStatus } from "@/lib/types";
 
 const statusOptions: DriverRouteStatus[] = ["Waiting", "Started", "In Progress", "Completed"];
@@ -13,7 +13,7 @@ export function DriverDashboard({
   drivers: Driver[];
   assignments: DriverRouteAssignment[];
 }) {
-  const [selectedDriverId, setSelectedDriverId] = useState(drivers[0]?.id ?? "");
+  const selectedDriverId = drivers[0]?.id ?? "";
   const [routeStates, setRouteStates] = useState(assignments);
   const [uploadedImages, setUploadedImages] = useState<Record<string, string>>({});
   const [submittedChecks, setSubmittedChecks] = useState<Record<string, boolean>>({});
@@ -23,6 +23,12 @@ export function DriverDashboard({
     () => routeStates.filter((assignment) => assignment.driverId === selectedDriverId),
     [routeStates, selectedDriverId],
   );
+
+  useEffect(() => {
+    return () => {
+      Object.values(uploadedImages).forEach((url) => URL.revokeObjectURL(url));
+    };
+  }, [uploadedImages]);
 
   const updateStatus = (assignmentId: string, status: DriverRouteStatus) => {
     setRouteStates((current) =>
@@ -54,46 +60,7 @@ export function DriverDashboard({
   };
 
   return (
-    <div className="grid gap-6 lg:grid-cols-[300px_minmax(0,1fr)]">
-      <aside className="rounded-[2rem] border border-stone-200 bg-white p-6 shadow-[0_20px_40px_-35px_rgba(41,37,36,0.35)]">
-        <p className="text-sm font-semibold uppercase tracking-[0.18em] text-emerald-700">Driver view</p>
-        <h1 className="mt-2 text-3xl font-semibold tracking-tight text-stone-950">Assigned routes</h1>
-        <p className="mt-3 text-sm leading-7 text-stone-600">
-          Drivers can review assigned pickups, update route status, upload proof images, and submit a quality check when the route is complete.
-        </p>
-
-        <div className="mt-6 space-y-3">
-          {drivers.map((driver) => (
-            <button
-              key={driver.id}
-              type="button"
-              onClick={() => setSelectedDriverId(driver.id)}
-              className={`flex w-full items-center gap-3 rounded-[1.5rem] border px-4 py-3 text-left ${
-                driver.id === selectedDriverId
-                  ? "border-emerald-300 bg-emerald-50"
-                  : "border-stone-200 bg-stone-50 hover:border-stone-300 hover:bg-white"
-              }`}
-            >
-              <Image
-                src={driver.avatarUrl}
-                alt={`${driver.firstName} ${driver.lastName}`}
-                width={48}
-                height={48}
-                className="h-12 w-12 rounded-full object-cover"
-              />
-              <div>
-                <p className="text-sm font-semibold text-stone-950">
-                  {driver.firstName} {driver.lastName}
-                </p>
-                <p className="text-xs text-stone-500">
-                  {driver.vehicle} · {driver.zone}
-                </p>
-              </div>
-            </button>
-          ))}
-        </div>
-      </aside>
-
+    <div className="space-y-6">
       <section className="space-y-6">
         <div className="rounded-[2rem] border border-emerald-100 bg-[linear-gradient(135deg,#f6fbf5_0%,#fffaf1_100%)] p-6 shadow-[0_20px_40px_-35px_rgba(41,37,36,0.35)]">
           <div className="flex items-center gap-4">
@@ -137,14 +104,42 @@ export function DriverDashboard({
                 </div>
               </div>
 
-              <div className="mt-6 grid gap-4 md:grid-cols-2">
-                <div className="rounded-[1.5rem] bg-stone-50 p-4">
-                  <p className="text-sm font-semibold text-stone-950">Route material</p>
-                  <p className="mt-2 text-sm leading-7 text-stone-600">{assignment.material}</p>
-                </div>
-                <div className="rounded-[1.5rem] bg-stone-50 p-4">
-                  <p className="text-sm font-semibold text-stone-950">Driver notes</p>
-                  <p className="mt-2 text-sm leading-7 text-stone-600">{assignment.notes}</p>
+              <div className="mt-6 rounded-[1.75rem] border border-stone-200 bg-stone-50 p-5">
+                <p className="text-sm font-semibold uppercase tracking-[0.16em] text-emerald-700">Route timeline</p>
+                <div className="mt-5 space-y-4">
+                  {[
+                    {
+                      label: "Pickup source",
+                      value: assignment.pickupSource,
+                      detail: assignment.pickupWindow,
+                    },
+                    {
+                      label: "Material loaded",
+                      value: assignment.material,
+                      detail: assignment.notes,
+                    },
+                    {
+                      label: "Drop-off destination",
+                      value: assignment.destination,
+                      detail: `Current status: ${assignment.status}`,
+                    },
+                  ].map((item, index, items) => (
+                    <div key={item.label} className="flex gap-4">
+                      <div className="flex flex-col items-center">
+                        <div className="flex h-10 w-10 items-center justify-center rounded-full bg-emerald-700 text-sm font-semibold text-white">
+                          {index + 1}
+                        </div>
+                        {index < items.length - 1 ? (
+                          <div className="mt-2 h-full min-h-8 w-px bg-emerald-200" />
+                        ) : null}
+                      </div>
+                      <div className="pb-2">
+                        <p className="text-sm font-semibold text-stone-950">{item.label}</p>
+                        <p className="mt-1 text-base font-medium text-stone-800">{item.value}</p>
+                        <p className="mt-1 text-sm leading-7 text-stone-600">{item.detail}</p>
+                      </div>
+                    </div>
+                  ))}
                 </div>
               </div>
 

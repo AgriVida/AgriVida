@@ -15,7 +15,7 @@ type MarkerPoint = {
   id: string;
   label: string;
   title: string;
-  kind: "origin" | "pickup" | "destination";
+  kind: "origin" | "pickup" | "destination" | "fertilizer";
   position: google.maps.LatLngLiteral;
 };
 
@@ -48,6 +48,7 @@ function DemoRouteCanvas({ markers }: { markers: MarkerPoint[] }) {
     );
   }
 
+  const routeMarkers = markers.filter((marker) => marker.kind !== "fertilizer");
   const latitudes = markers.map((marker) => marker.position.lat);
   const longitudes = markers.map((marker) => marker.position.lng);
   const minLat = Math.min(...latitudes);
@@ -68,27 +69,34 @@ function DemoRouteCanvas({ markers }: { markers: MarkerPoint[] }) {
     canvas: projectPoint(marker.position),
   }));
 
-  const path = projectedMarkers.map((marker) => `${marker.canvas.x},${marker.canvas.y}`).join(" ");
+  const path = projectedMarkers
+    .filter((marker) => marker.kind !== "fertilizer")
+    .map((marker) => `${marker.canvas.x},${marker.canvas.y}`)
+    .join(" ");
 
   return (
     <div className="relative flex h-full items-center justify-center overflow-hidden bg-[linear-gradient(180deg,#edf4ef_0%,#dfe9e0_100%)]">
       <div className="absolute inset-0 bg-[radial-gradient(circle_at_20%_20%,rgba(34,197,94,0.16),transparent_24%),radial-gradient(circle_at_80%_25%,rgba(59,130,246,0.12),transparent_20%),linear-gradient(rgba(255,255,255,0.35)_1px,transparent_1px),linear-gradient(90deg,rgba(255,255,255,0.35)_1px,transparent_1px)] bg-[size:auto,auto,42px_42px,42px_42px]" />
       <svg viewBox={`0 0 ${width} ${height}`} className="relative h-full w-full">
-        <polyline
-          points={path}
-          fill="none"
-          stroke="#0f766e"
-          strokeWidth="7"
-          strokeLinecap="round"
-          strokeLinejoin="round"
-        />
+        {routeMarkers.length > 1 ? (
+          <polyline
+            points={path}
+            fill="none"
+            stroke="#0f766e"
+            strokeWidth="7"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+          />
+        ) : null}
         {projectedMarkers.map((marker) => (
           <g key={marker.id} transform={`translate(${marker.canvas.x}, ${marker.canvas.y})`}>
             <circle
-              r={marker.kind === "pickup" ? 18 : 22}
+              r={marker.kind === "pickup" ? 18 : marker.kind === "fertilizer" ? 20 : 22}
               fill={
                 marker.kind === "origin"
                   ? "#0f172a"
+                  : marker.kind === "fertilizer"
+                    ? "#7c3aed"
                   : marker.kind === "destination"
                     ? "#d97706"
                     : "#16a34a"
@@ -149,7 +157,7 @@ function toMarkerPoints(
 
   const pickupStops = allStops.filter((stop) => stop.kind === "pickup");
 
-  return allStops
+  const routeMarkers = allStops
     .map((stop) => {
       if (stop.kind === "origin") {
         return {
@@ -201,8 +209,18 @@ function toMarkerPoints(
             (resolvedDestinationPosition.lng - resolvedOriginPosition.lng) * fraction,
         },
       } satisfies MarkerPoint;
-    })
-    .filter((marker): marker is MarkerPoint => marker !== null);
+    });
+
+  const fertilizerMarkers =
+    scenario?.fertilizerPoints?.map((point) => ({
+      id: point.id,
+      label: point.label,
+      title: point.title,
+      kind: "fertilizer" as const,
+      position: point.position,
+    })) ?? [];
+
+  return [...routeMarkers, ...fertilizerMarkers];
 }
 
 function RouteSync({
@@ -238,6 +256,7 @@ export function GoogleRoutePlanner({
   const [selectedScenarioId, setSelectedScenarioId] = useState(scenarios[0]?.id ?? "");
   const [googleMapsFailed, setGoogleMapsFailed] = useState(false);
   const [driverMenuOpen, setDriverMenuOpen] = useState(false);
+  const [routeSent, setRouteSent] = useState(false);
   const selectedScenario = scenarios.find((scenario) => scenario.id === selectedScenarioId) ?? scenarios[0];
   const [selectedDriverId, setSelectedDriverId] = useState(drivers[0]?.id ?? "");
   const selectedDriver = drivers.find((driver) => driver.id === selectedDriverId) ?? drivers[0];
@@ -253,6 +272,38 @@ export function GoogleRoutePlanner({
   const [markers, setMarkers] = useState<MarkerPoint[]>(
     toMarkerPoints(selectedScenario?.origin ?? "", selectedScenario?.destination ?? "", selectedScenario?.pickups ?? [], selectedScenario),
   );
+  const routeMarkers = markers.filter((marker) => marker.kind !== "fertilizer");
+
+  const buildMarkerIcon = (marker: MarkerPoint) => {
+    if (typeof google === "undefined" || !google.maps) {
+      return undefined;
+    }
+
+    if (marker.kind === "fertilizer") {
+      return {
+        url: "/icons/fertilizer-point.png",
+        scaledSize: new google.maps.Size(42, 42),
+      };
+    }
+
+    const fill =
+      marker.kind === "origin"
+        ? "#0f172a"
+        : marker.kind === "destination"
+          ? "#d97706"
+          : "#16a34a";
+    const svg = `
+      <svg xmlns="http://www.w3.org/2000/svg" width="44" height="44" viewBox="0 0 44 44">
+        <circle cx="22" cy="22" r="18" fill="${fill}" stroke="white" stroke-width="4" />
+      </svg>
+    `;
+
+    return {
+      url: `data:image/svg+xml;charset=UTF-8,${encodeURIComponent(svg)}`,
+      scaledSize: new google.maps.Size(44, 44),
+      labelOrigin: new google.maps.Point(22, 23),
+    };
+  };
 
   useEffect(() => {
     const authFailureHandler = () => {
@@ -276,6 +327,7 @@ export function GoogleRoutePlanner({
     setDraftPickups(scenario.pickups.map((pickup) => createPickupDraft(pickup, true)));
     setMarkers(toMarkerPoints(scenario.origin, scenario.destination, scenario.pickups, scenario));
     setGoogleMapsFailed(false);
+    setRouteSent(false);
   };
 
   const updateDraftPickup = (pickupId: string, value: string) => {
@@ -352,6 +404,7 @@ export function GoogleRoutePlanner({
                       onClick={() => {
                         setSelectedDriverId(driver.id);
                         setDriverMenuOpen(false);
+                        setRouteSent(false);
                       }}
                       className="flex w-full items-center gap-3 border-b border-slate-100 px-4 py-3 text-left last:border-b-0 hover:bg-slate-50"
                     >
@@ -525,12 +578,19 @@ export function GoogleRoutePlanner({
               </div>
             </div>
 
-            <button
+              <button
               type="button"
               className="mt-4 w-full rounded-2xl bg-emerald-700 px-4 py-3 text-sm font-semibold text-white hover:bg-emerald-800"
+              onClick={() => setRouteSent(true)}
             >
               Send route details to driver
             </button>
+
+            {routeSent ? (
+              <div className="mt-4 rounded-[1.25rem] border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm font-semibold text-emerald-800">
+                Route details sent to {selectedDriver.firstName} {selectedDriver.lastName}.
+              </div>
+            ) : null}
           </div>
 
         </aside>
@@ -562,9 +622,9 @@ export function GoogleRoutePlanner({
                     scenario={selectedScenario}
                     onMarkersChange={setMarkers}
                   />
-                  {markers.length > 1 ? (
+                  {routeMarkers.length > 1 ? (
                     <Polyline
-                      path={markers.map((marker) => marker.position)}
+                      path={routeMarkers.map((marker) => marker.position)}
                       strokeColor="#0f766e"
                       strokeOpacity={0.9}
                       strokeWeight={6}
@@ -575,9 +635,15 @@ export function GoogleRoutePlanner({
                       key={marker.id}
                       position={marker.position}
                       title={marker.title}
+                      icon={buildMarkerIcon(marker)}
                       label={{
-                        text: marker.label,
-                        color: marker.kind === "destination" ? "#92400e" : "#0f172a",
+                        text: marker.kind === "fertilizer" ? "" : marker.label,
+                        color:
+                          marker.kind === "destination"
+                            ? "#92400e"
+                            : marker.kind === "fertilizer"
+                              ? "#581c87"
+                              : "#0f172a",
                         fontWeight: "700",
                       }}
                     />
@@ -591,7 +657,7 @@ export function GoogleRoutePlanner({
             <div className="rounded-[1.5rem] border border-white/70 bg-white/90 px-4 py-3 shadow-lg backdrop-blur">
               <p className="text-xs uppercase tracking-[0.18em] text-slate-500">Visible markers</p>
               <p className="mt-1 text-sm text-slate-700">
-                Start: <span className="font-semibold">S</span> · Destination: <span className="font-semibold">D</span> · Pickups: numbered stops in between
+                Start: <span className="font-semibold">S</span> · Destination: <span className="font-semibold">D</span> · Pickups: numbered stops · Fertilizer: <span className="font-semibold">F</span> markers
               </p>
             </div>
           </div>
