@@ -48,10 +48,10 @@ This MVP is intentionally minimal: no authentication, no crop listings, no deliv
 
 ### Proximity Matching
 
-- Farmers are matched to routes using a **10-mile Haversine distance from the route's decoded polyline**. When a hub publishes a route, the system decodes the Google Maps encoded polyline into lat/lng points, loads all registered farmers into memory, and checks each farmer against every polyline point using the Haversine formula. A farm within 10 miles of **any point along the route path** is notified.
+- Farmers are matched to routes using a **10-mile Haversine distance check against the route's decoded polyline**. The client decodes the Google Maps polyline into lat/lng points using `google.maps.geometry.encoding.decodePath()`, then sends the point array to the backend in the publish request. The backend loads all registered farmers into memory and checks each farmer against every polyline point using Haversine. A farm within 10 miles of **any point along the route path** is notified.
 - This approach covers the full route — not just start/end points — ensuring farms along the middle of the route are notified. At MVP scale (tens to low hundreds of farmers, ~100-500 polyline points), this computation runs in milliseconds with no spatial index required.
-- The encoded polyline is already returned by the Google Maps Routes API when creating the route, so no additional API calls are needed.
-- The `@mapbox/polyline` library decodes the polyline server-side. Distance calculation uses the **Haversine formula** on geocoded lat/lng coordinates. No PostGIS extension required.
+- Polyline decoding happens client-side where the Google Maps library is already loaded, so no server-side polyline library is needed. The backend receives a plain array of `{lat, lng}` points.
+- The encoded polyline string is also stored in the database so the route can be re-rendered on the map when viewing route details. 
 
 ### Map & Geocoding
 
