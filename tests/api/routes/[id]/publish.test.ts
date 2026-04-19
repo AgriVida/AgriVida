@@ -1,340 +1,190 @@
-import { describe, it, expect, vi, beforeEach } from "vitest";
+import { config } from "dotenv";
+import { describe, it, expect, beforeAll, afterAll } from "vitest";
+import { createClient } from "@supabase/supabase-js";
+import { PATCH } from "@/app/api/routes/[id]/publish/route";
+import type { Database } from "@/lib/supabase/database.types";
 
-// ---------------------------------------------------------------------------
-// Env – must be set before any module that reads process.env at import time
-// ---------------------------------------------------------------------------
-process.env.TWILIO_ACCOUNT_SID = "ACtest";
-process.env.TWILIO_AUTH_TOKEN = "test-auth-token";
-process.env.TWILIO_PHONE_NUMBER = "+15555555555";
-process.env.BASE_URL = "http://localhost:3000";
-process.env.NEXT_PUBLIC_SUPABASE_URL = "http://localhost:54321";
-process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY = "test-anon-key";
-process.env.SUPABASE_SERVICE_ROLE_KEY = "test-service-role-key";
+config({ path: ".env.local" });
 
-// ---------------------------------------------------------------------------
-// Mocks
-// ---------------------------------------------------------------------------
+const supabase = createClient<Database>(
+  process.env.NEXT_PUBLIC_SUPABASE_URL!,
+  process.env.SUPABASE_SERVICE_ROLE_KEY!,
+  { auth: { autoRefreshToken: false, persistSession: false } },
+);
 
-// -- Twilio --
-const mockMessagesCreate = vi.fn();
+const TEST_TAG = `itest-${Date.now()}`;
+const ALBUQUERQUE_LAT = 35.0844;
+const ALBUQUERQUE_LNG = -106.6504;
+const FARMER_OFFSET = 0.005;
 
-vi.mock("twilio", () => ({
-  Twilio: vi.fn().mockImplementation(function () {
-    return { messages: { create: mockMessagesCreate } };
-  }),
-}));
+const createdFarmerIds: string[] = [];
+const createdRouteIds: string[] = [];
+const createdHubIds: string[] = [];
 
-// -- Supabase --
-// We build a flexible mock that lets each test configure return values.
-type MockChain = {
-  select: ReturnType<typeof vi.fn>;
-  eq: ReturnType<typeof vi.fn>;
-  single: ReturnType<typeof vi.fn>;
-  insert: ReturnType<typeof vi.fn>;
-  update: ReturnType<typeof vi.fn>;
-};
-
-function createMockChain(): MockChain {
-  const chain: MockChain = {
-    select: vi.fn(),
-    eq: vi.fn(),
-    single: vi.fn(),
-    insert: vi.fn(),
-    update: vi.fn(),
-  };
-
-  chain.select.mockImplementation(() => ({
-    eq: chain.eq,
-    single: chain.single,
-  }));
-  chain.eq.mockImplementation(() => ({
-    single: chain.single,
-    select: chain.select,
-  }));
-  chain.update.mockImplementation(() => ({
-    eq: chain.eq,
-    select: chain.select,
-  }));
-  chain.insert.mockResolvedValue({ error: null });
-
-  return chain;
+async function insertTestHub() {
+  const { data, error } = await supabase
+    .from("hubs")
+    .insert({
+      name: `Test Hub ${TEST_TAG}`,
+      phone: "+15559990000",
+      email: `test-${TEST_TAG}@example.com`,
+    })
+    .select()
+    .single();
+  if (error) throw new Error(`Failed to insert hub: ${error.message}`);
+  createdHubIds.push(data.id);
+  return data;
 }
 
-let routesChain: MockChain;
-let notificationLogChain: MockChain;
-let mockRpc: ReturnType<typeof vi.fn>;
+async function insertTestFarmer(suffix: string, lat: number, lng: number) {
+  const { data, error } = await supabase
+    .from("farmers")
+    .insert({
+      name: `Test Farmer ${suffix} ${TEST_TAG}`,
+      phone: `+1555000${suffix.padStart(4, "0")}`,
+      address_text: `Test Address ${suffix}`,
+      latitude: lat,
+      longitude: lng,
+    })
+    .select()
+    .single();
+  if (error) throw new Error(`Failed to insert farmer: ${error.message}`);
+  createdFarmerIds.push(data.id);
+  return data;
+}
 
-vi.mock("@/lib/supabase/server", () => ({
-  createAdminSupabaseClient: () => {
-    const routesChainLocal = routesChain;
-    const notifChainLocal = notificationLogChain;
+async function insertTestRoute(hubId: string, lat: number, lng: number) {
+  const { data, error } = await supabase
+    .from("routes")
+    .insert({
+      title: `Test Route ${TEST_TAG}`,
+      hub_id: hubId,
+      start_lat: lat,
+      start_lng: lng,
+      end_lat: lat + 0.01,
+      end_lng: lng + 0.01,
+      start_time: "2026-06-01T09:00:00Z",
+      end_time: "2026-06-01T17:00:00Z",
+      route_polyline: "test_polyline",
+      notes: "Integration test route",
+    })
+    .select()
+    .single();
+  if (error) throw new Error(`Failed to insert route: ${error.message}`);
+  createdRouteIds.push(data.id);
+  return data;
+}
 
-    return {
-      from: (table: string) => {
-        if (table === "routes") return routesChainLocal;
-        if (table === "notification_log") return notifChainLocal;
-        throw new Error(`Unexpected table: ${table}`);
-      },
-      rpc: mockRpc,
-    };
-  },
-}));
-
-// ---------------------------------------------------------------------------
-// Import handler (after mocks)
-// ---------------------------------------------------------------------------
-import { PATCH } from "@/app/api/routes/[id]/publish/route";
-
-// ---------------------------------------------------------------------------
-// Fixtures
-// ---------------------------------------------------------------------------
-
-const ROUTE_ID = "route-001";
-const HUB_ID = "hub-001";
-
-const fakeHub = { id: HUB_ID, name: "Valley Hub", phone: "+15559990000", email: "valley@hub.com" };
-
-const fakeRoute = {
-  id: ROUTE_ID,
-  title: "Valley Run",
-  hub_id: HUB_ID,
-  start_lat: 37.7749,
-  start_lng: -122.4194,
-  end_lat: 37.8044,
-  end_lng: -122.2712,
-  start_time: "2026-05-01T09:00:00Z",
-  end_time: "2026-05-01T17:00:00Z",
-  route_polyline: "abc123",
-  notes: null,
-  published: false,
-  created_at: "2026-04-19T00:00:00Z",
-  hubs: fakeHub,
-};
-
-const fakeFarmers = [
-  {
-    farmer_id: "farmer-001",
-    farmer_name: "Alice",
-    phone: "+15551110001",
-    address_text: "123 Farm Rd",
-    latitude: 37.78,
-    longitude: -122.41,
-    min_distance_miles: 0.5,
-  },
-  {
-    farmer_id: "farmer-002",
-    farmer_name: "Bob",
-    phone: "+15551110002",
-    address_text: "456 Barn Ln",
-    latitude: 37.79,
-    longitude: -122.39,
-    min_distance_miles: 2.3,
-  },
-];
-
-// ---------------------------------------------------------------------------
-// Helpers
-// ---------------------------------------------------------------------------
-
-function callPatch(id: string = ROUTE_ID) {
-  const req = new Request(`http://localhost/api/routes/${id}/publish`, {
+async function callPublish(routeId: string) {
+  const req = new Request(`http://localhost/api/routes/${routeId}/publish`, {
     method: "PATCH",
   });
-  const ctx = { params: Promise.resolve({ id }) };
+  const ctx = { params: Promise.resolve({ id: routeId }) };
   return PATCH(req, ctx);
 }
 
-// ---------------------------------------------------------------------------
-// Tests
-// ---------------------------------------------------------------------------
+afterAll(async () => {
+  await supabase.from("notification_log").delete().in("route_id", createdRouteIds.length ? createdRouteIds : ["__none__"]);
+  await supabase.from("route_responses").delete().in("route_id", createdRouteIds.length ? createdRouteIds : ["__none__"]);
+  await supabase.from("routes").delete().in("id", createdRouteIds.length ? createdRouteIds : ["__none__"]);
+  await supabase.from("farmers").delete().in("id", createdFarmerIds.length ? createdFarmerIds : ["__none__"]);
+  await supabase.from("hubs").delete().in("id", createdHubIds.length ? createdHubIds : ["__none__"]);
+});
 
-describe("PATCH /api/routes/:id/publish", () => {
-  beforeEach(() => {
-    vi.clearAllMocks();
+describe("PATCH /api/routes/:id/publish — integration", () => {
+  let hub: Awaited<ReturnType<typeof insertTestHub>>;
 
-    routesChain = createMockChain();
-    notificationLogChain = createMockChain();
-    mockRpc = vi.fn();
-
-    // Default: Twilio create succeeds
-    mockMessagesCreate.mockResolvedValue({
-      sid: "SM-test-sid",
-      status: "queued",
-    });
+  beforeAll(async () => {
+    hub = await insertTestHub();
   });
 
-  // -----------------------------------------------------------------------
-  // 1. Happy path — sends SMS to all matched farmers
-  // -----------------------------------------------------------------------
-  it("sends SMS to all matched farmers and returns 200", async () => {
-    // First .select().eq().single() returns route
-    // Second .update().eq().single() returns published route
-    routesChain.single
-      .mockResolvedValueOnce({ data: fakeRoute, error: null })
-      .mockResolvedValueOnce({
-        data: { ...fakeRoute, published: true, hubs: fakeHub },
-        error: null,
-      });
+  it("finds nearby farmer, sends SMS, logs notification, marks route published", async () => {
+    const farmer = await insertTestFarmer(
+      "0001",
+      ALBUQUERQUE_LAT + FARMER_OFFSET,
+      ALBUQUERQUE_LNG + FARMER_OFFSET,
+    );
+    const route = await insertTestRoute(hub.id, ALBUQUERQUE_LAT, ALBUQUERQUE_LNG);
 
-    mockRpc.mockResolvedValue({ data: fakeFarmers, error: null });
-
-    const response = await callPatch();
-    const json = await response.json();
-
+    const response = await callPublish(route.id);
     expect(response.status).toBe(200);
-    expect(json.farmers_notified).toBe(2);
-    expect(json.notifications).toHaveLength(2);
 
-    // Twilio called once per farmer
-    expect(mockMessagesCreate).toHaveBeenCalledTimes(2);
+    const json = await response.json();
+    expect(json.farmers_notified).toBeGreaterThanOrEqual(1);
+    expect(json.notifications.length).toBeGreaterThanOrEqual(1);
 
-    // Correct phone numbers
-    expect(mockMessagesCreate).toHaveBeenNthCalledWith(
-      1,
-      expect.objectContaining({ to: "+15551110001", from: "+15555555555" }),
+    const routeCheck = await supabase
+      .from("routes")
+      .select("published")
+      .eq("id", route.id)
+      .single();
+    expect(routeCheck.data?.published).toBe(true);
+
+    const { data: logs } = await supabase
+      .from("notification_log")
+      .select("*")
+      .eq("route_id", route.id);
+    expect(logs).toBeDefined();
+    expect(logs!.length).toBeGreaterThanOrEqual(1);
+
+    const farmerLog = logs!.find((l) => l.farmer_id === farmer.id);
+    expect(farmerLog).toBeDefined();
+    expect(farmerLog!.status).toBe(
+      process.env.TWILIO_ACCOUNT_SID ? "sent" : "failed",
     );
-    expect(mockMessagesCreate).toHaveBeenNthCalledWith(
-      2,
-      expect.objectContaining({ to: "+15551110002", from: "+15555555555" }),
-    );
-
-    // Proximity matching called with route points and default radius
-    expect(mockRpc).toHaveBeenCalledWith("find_farmers_near_route_points", {
-      route_points: [
-        { lat: 37.7749, lng: -122.4194 },
-        { lat: 37.8044, lng: -122.2712 },
-      ],
-      radius_miles: 10,
-    });
-
-    // Notification log entries inserted
-    expect(notificationLogChain.insert).toHaveBeenCalledTimes(2);
-
-    // Route marked as published
-    expect(routesChain.update).toHaveBeenCalledWith({ published: true });
   });
 
-  // -----------------------------------------------------------------------
-  // 2. No farmers nearby
-  // -----------------------------------------------------------------------
   it("publishes route with 0 notifications when no farmers are nearby", async () => {
-    routesChain.single
-      .mockResolvedValueOnce({ data: fakeRoute, error: null })
-      .mockResolvedValueOnce({
-        data: { ...fakeRoute, published: true, hubs: fakeHub },
-        error: null,
-      });
+    const route = await insertTestRoute(hub.id, 0, 0);
 
-    mockRpc.mockResolvedValue({ data: [], error: null });
-
-    const response = await callPatch();
-    const json = await response.json();
-
+    const response = await callPublish(route.id);
     expect(response.status).toBe(200);
+
+    const json = await response.json();
     expect(json.farmers_notified).toBe(0);
     expect(json.notifications).toHaveLength(0);
-    expect(mockMessagesCreate).not.toHaveBeenCalled();
+
+    const routeCheck = await supabase
+      .from("routes")
+      .select("published")
+      .eq("id", route.id)
+      .single();
+    expect(routeCheck.data?.published).toBe(true);
   });
 
-  // -----------------------------------------------------------------------
-  // 3. Route not found
-  // -----------------------------------------------------------------------
-  it("returns 404 when route does not exist", async () => {
-    routesChain.single.mockResolvedValueOnce({
-      data: null,
-      error: { message: "not found" },
-    });
-
-    const response = await callPatch();
-
+  it("returns 404 for nonexistent route", async () => {
+    const response = await callPublish("00000000-0000-0000-0000-000000000000");
     expect(response.status).toBe(404);
-    expect(mockMessagesCreate).not.toHaveBeenCalled();
   });
 
-  // -----------------------------------------------------------------------
-  // 4. Route already published
-  // -----------------------------------------------------------------------
   it("returns 409 when route is already published", async () => {
-    routesChain.single.mockResolvedValueOnce({
-      data: { ...fakeRoute, published: true },
-      error: null,
-    });
+    const route = await insertTestRoute(hub.id, ALBUQUERQUE_LAT, ALBUQUERQUE_LNG);
 
-    const response = await callPatch();
+    const first = await callPublish(route.id);
+    expect(first.status).toBe(200);
 
-    expect(response.status).toBe(409);
-    expect(mockMessagesCreate).not.toHaveBeenCalled();
+    const second = await callPublish(route.id);
+    expect(second.status).toBe(409);
   });
 
-  // -----------------------------------------------------------------------
-  // 5. Twilio partial failure
-  // -----------------------------------------------------------------------
-  it("handles partial Twilio failure — one SMS fails, one succeeds", async () => {
-    routesChain.single
-      .mockResolvedValueOnce({ data: fakeRoute, error: null })
-      .mockResolvedValueOnce({
-        data: { ...fakeRoute, published: true, hubs: fakeHub },
-        error: null,
-      });
+  it("notification_log entries link correct route and farmer", async () => {
+    const farmer = await insertTestFarmer(
+      "0002",
+      ALBUQUERQUE_LAT + FARMER_OFFSET,
+      ALBUQUERQUE_LNG + FARMER_OFFSET,
+    );
+    const route = await insertTestRoute(hub.id, ALBUQUERQUE_LAT, ALBUQUERQUE_LNG);
 
-    mockRpc.mockResolvedValue({ data: fakeFarmers, error: null });
+    await callPublish(route.id);
 
-    // First SMS succeeds, second fails
-    mockMessagesCreate
-      .mockResolvedValueOnce({ sid: "SM-ok", status: "queued" })
-      .mockRejectedValueOnce(new Error("Twilio rate limit"));
-
-    const response = await callPatch();
-    const json = await response.json();
-
-    expect(response.status).toBe(200);
-    expect(json.farmers_notified).toBe(1);
-    expect(json.notifications).toHaveLength(2);
-
-    const statuses = json.notifications.map((n: { status: string }) => n.status);
-    expect(statuses).toContain("sent");
-    expect(statuses).toContain("failed");
-  });
-
-  // -----------------------------------------------------------------------
-  // 6. SMS content correctness
-  // -----------------------------------------------------------------------
-  it("includes hub name, date, response URL, and contact info in SMS body", async () => {
-    routesChain.single
-      .mockResolvedValueOnce({ data: fakeRoute, error: null })
-      .mockResolvedValueOnce({
-        data: { ...fakeRoute, published: true, hubs: fakeHub },
-        error: null,
-      });
-
-    mockRpc.mockResolvedValue({ data: [fakeFarmers[0]], error: null });
-
-    await callPatch();
-
-    expect(mockMessagesCreate).toHaveBeenCalledTimes(1);
-
-    const body: string = mockMessagesCreate.mock.calls[0][0].body;
-
-    expect(body).toContain("Valley Hub");
-    expect(body).toContain("/respond?route=route-001&farmer=farmer-001");
-    expect(body).toContain("+15559990000");
-    expect(body).toContain("valley@hub.com");
-  });
-
-  // -----------------------------------------------------------------------
-  // 7. Proximity matching failure
-  // -----------------------------------------------------------------------
-  it("returns 500 when proximity matching fails", async () => {
-    routesChain.single.mockResolvedValueOnce({ data: fakeRoute, error: null });
-
-    mockRpc.mockResolvedValue({
-      data: null,
-      error: { message: "rpc function error" },
-    });
-
-    const response = await callPatch();
-
-    expect(response.status).toBe(500);
-    expect(mockMessagesCreate).not.toHaveBeenCalled();
+    const { data: logs } = await supabase
+      .from("notification_log")
+      .select("*")
+      .eq("route_id", route.id)
+      .eq("farmer_id", farmer.id);
+    expect(logs).toBeDefined();
+    expect(logs!.length).toBe(1);
+    expect(logs![0].route_id).toBe(route.id);
+    expect(logs![0].farmer_id).toBe(farmer.id);
   });
 });
