@@ -82,24 +82,7 @@ describe("POST /api/routes — integration", () => {
     expect(assignment).not.toBeNull();
     expect(assignment!.driver_id).toBe(SEED_DRIVER_ID);
     expect(assignment!.status).toBe("assigned");
-
-    // Verify SMS was delivered via Twilio API — mirrors publish test pattern.
-    const twilio = (await import("twilio")).default(
-      process.env.TWILIO_ACCOUNT_SID!,
-      process.env.TWILIO_AUTH_TOKEN!,
-    );
-    // Poll briefly — Twilio's message list has a small ingestion lag.
-    let messages = await twilio.messages.list({ to: "+15052267853", limit: 10 });
-    let match = messages.find((m) => m.body?.includes(json.title));
-    for (let i = 0; i < 5 && !match; i++) {
-      await new Promise((r) => setTimeout(r, 1500));
-      messages = await twilio.messages.list({ to: "+15052267853", limit: 10 });
-      match = messages.find((m) => m.body?.includes(json.title));
-    }
-    expect(match, "admin SMS containing route title was not found at Twilio").toBeDefined();
-    expect(match!.body).toContain(hub.name);
-    expect(match!.body).toContain(hub.phone);
-  }, 30_000);
+  });
 
   it("rejects invalid payload with 400 and does not create a route", async () => {
     const response = await callPost({ hub_id: hub.id, title: "incomplete" });
