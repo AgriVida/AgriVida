@@ -6,6 +6,9 @@ import type { Database } from "@/lib/supabase/database.types";
 
 config({ path: ".env.local" });
 
+// This test is the one integration test permitted to send a real Twilio SMS.
+process.env.SMS_DRY_RUN = "0";
+
 const supabase = createClient<Database>(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
   process.env.SUPABASE_SERVICE_ROLE_KEY!,
