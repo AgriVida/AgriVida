@@ -13,6 +13,7 @@ const supabase = createClient<Database>(
 );
 
 const TEST_TAG = `itest-create-${Date.now()}`;
+const SEED_DRIVER_ID = "d0000001-0000-0000-0000-000000000001";
 const createdHubIds: string[] = [];
 const createdRouteIds: string[] = [];
 
@@ -41,6 +42,7 @@ async function callPost(body: unknown) {
 }
 
 afterAll(async () => {
+  await supabase.from("route_assignments").delete().in("route_id", createdRouteIds.length ? createdRouteIds : ["__none__"]);
   await supabase.from("routes").delete().in("id", createdRouteIds.length ? createdRouteIds : ["__none__"]);
   await supabase.from("hubs").delete().in("id", createdHubIds.length ? createdHubIds : ["__none__"]);
 });
@@ -55,6 +57,7 @@ describe("POST /api/routes — integration", () => {
   it("creates route and sends admin SMS confirmation", async () => {
     const response = await callPost({
       hub_id: hub.id,
+      driver_id: SEED_DRIVER_ID,
       title: `Created Route ${TEST_TAG}`,
       route_polyline: "test_polyline",
       start_lat: 35.0844,
@@ -70,6 +73,15 @@ describe("POST /api/routes — integration", () => {
     const json = await response.json();
     expect(json.id).toBeDefined();
     createdRouteIds.push(json.id);
+
+    const { data: assignment } = await supabase
+      .from("route_assignments")
+      .select("id, route_id, driver_id, status")
+      .eq("route_id", json.id)
+      .single();
+    expect(assignment).not.toBeNull();
+    expect(assignment!.driver_id).toBe(SEED_DRIVER_ID);
+    expect(assignment!.status).toBe("assigned");
 
     // Verify SMS was delivered via Twilio API — mirrors publish test pattern.
     const twilio = (await import("twilio")).default(
@@ -91,6 +103,19 @@ describe("POST /api/routes — integration", () => {
 
   it("rejects invalid payload with 400 and does not create a route", async () => {
     const response = await callPost({ hub_id: hub.id, title: "incomplete" });
+    expect(response.status).toBe(400);
+  });
+
+  it("rejects missing driver_id with 400", async () => {
+    const response = await callPost({
+      hub_id: hub.id,
+      title: `No Driver ${TEST_TAG}`,
+      route_polyline: "x",
+      start_lat: 35, start_lng: -106,
+      end_lat: 35.1, end_lng: -106.1,
+      start_time: "2026-06-01T09:00:00Z",
+      end_time: "2026-06-01T17:00:00Z",
+    });
     expect(response.status).toBe(400);
   });
 });

@@ -44,6 +44,7 @@ export async function POST(request: Request) {
   }
 
   const hubId = asString(body.hub_id);
+  const driverId = asString(body.driver_id);
   const title = asString(body.title);
   const routePolyline = asString(body.route_polyline);
   const startTime = asString(body.start_time);
@@ -55,9 +56,9 @@ export async function POST(request: Request) {
   const endLat = asNumber(body.end_lat);
   const endLng = asNumber(body.end_lng);
 
-  if (!hubId || !title || !routePolyline || !startTime || !endTime) {
+  if (!hubId || !driverId || !title || !routePolyline || !startTime || !endTime) {
     return NextResponse.json(
-      { error: "hub_id, title, route_polyline, start_time, and end_time are required." },
+      { error: "hub_id, driver_id, title, route_polyline, start_time, and end_time are required." },
       { status: 400 },
     );
   }
@@ -98,6 +99,13 @@ export async function POST(request: Request) {
 
   if (error) {
     return NextResponse.json({ error: error.message }, { status: 500 });
+  }
+
+  const { error: assignmentError } = await supabase
+    .from("route_assignments")
+    .insert({ route_id: data.id, driver_id: driverId, status: "assigned" });
+  if (assignmentError) {
+    console.error("[routes.POST] assignment insert failed:", assignmentError);
   }
 
   try {
