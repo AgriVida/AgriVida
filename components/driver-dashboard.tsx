@@ -1,28 +1,29 @@
 "use client";
 
 import Image from "next/image";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useState } from "react";
+import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { api } from "@/lib/api/client";
 import type { Driver, DriverRouteAssignment, DriverRouteStatus } from "@/lib/types";
 
 const statusOptions: DriverRouteStatus[] = ["Waiting", "Started", "In Progress", "Completed"];
 
 export function DriverDashboard({
-  drivers,
+  driver,
   assignments,
 }: {
-  drivers: Driver[];
+  driver: Driver;
   assignments: DriverRouteAssignment[];
 }) {
-  const selectedDriverId = drivers[0]?.id ?? "";
-  const [routeStates, setRouteStates] = useState(assignments);
+  const queryClient = useQueryClient();
   const [uploadedImages, setUploadedImages] = useState<Record<string, string>>({});
   const [submittedChecks, setSubmittedChecks] = useState<Record<string, boolean>>({});
 
-  const selectedDriver = drivers.find((driver) => driver.id === selectedDriverId) ?? drivers[0];
-  const driverAssignments = useMemo(
-    () => routeStates.filter((assignment) => assignment.driverId === selectedDriverId),
-    [routeStates, selectedDriverId],
-  );
+  const statusMutation = useMutation({
+    mutationFn: ({ assignmentId, status }: { assignmentId: string; status: DriverRouteStatus }) =>
+      api.updateAssignmentStatus(driver.id, assignmentId, status),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["assignments", driver.id] }),
+  });
 
   useEffect(() => {
     return () => {
@@ -31,32 +32,18 @@ export function DriverDashboard({
   }, [uploadedImages]);
 
   const updateStatus = (assignmentId: string, status: DriverRouteStatus) => {
-    setRouteStates((current) =>
-      current.map((assignment) => (assignment.id === assignmentId ? { ...assignment, status } : assignment)),
-    );
+    statusMutation.mutate({ assignmentId, status });
   };
 
   const uploadImage = (assignmentId: string, file: File | undefined) => {
-    if (!file) {
-      return;
-    }
-
+    if (!file) return;
     const objectUrl = URL.createObjectURL(file);
-    setUploadedImages((current) => ({
-      ...current,
-      [assignmentId]: objectUrl,
-    }));
-    setSubmittedChecks((current) => ({
-      ...current,
-      [assignmentId]: false,
-    }));
+    setUploadedImages((current) => ({ ...current, [assignmentId]: objectUrl }));
+    setSubmittedChecks((current) => ({ ...current, [assignmentId]: false }));
   };
 
   const submitQualityCheck = (assignmentId: string) => {
-    setSubmittedChecks((current) => ({
-      ...current,
-      [assignmentId]: true,
-    }));
+    setSubmittedChecks((current) => ({ ...current, [assignmentId]: true }));
   };
 
   return (
@@ -64,27 +51,29 @@ export function DriverDashboard({
       <section className="space-y-6">
         <div className="rounded-[2rem] border border-emerald-100 bg-[linear-gradient(135deg,#f6fbf5_0%,#fffaf1_100%)] p-6 shadow-[0_20px_40px_-35px_rgba(41,37,36,0.35)]">
           <div className="flex items-center gap-4">
-            <Image
-              src={selectedDriver.avatarUrl}
-              alt={`${selectedDriver.firstName} ${selectedDriver.lastName}`}
-              width={60}
-              height={60}
-              className="h-15 w-15 rounded-full object-cover"
-            />
+            {driver.avatarUrl ? (
+              <Image
+                src={driver.avatarUrl}
+                alt={`${driver.firstName} ${driver.lastName}`}
+                width={60}
+                height={60}
+                className="h-15 w-15 rounded-full object-cover"
+              />
+            ) : null}
             <div>
               <p className="text-sm font-semibold uppercase tracking-[0.18em] text-emerald-700">Current driver</p>
               <h2 className="mt-1 text-2xl font-semibold text-stone-950">
-                {selectedDriver.firstName} {selectedDriver.lastName}
+                {driver.firstName} {driver.lastName}
               </h2>
               <p className="mt-1 text-sm text-stone-600">
-                {selectedDriver.vehicle} · {selectedDriver.phone} · {selectedDriver.zone}
+                {driver.vehicle} · {driver.phone} · {driver.zone}
               </p>
             </div>
           </div>
         </div>
 
         <div className="grid gap-6">
-          {driverAssignments.map((assignment) => (
+          {assignments.map((assignment) => (
             <article
               key={assignment.id}
               className="rounded-[2rem] border border-stone-200 bg-white p-6 shadow-[0_20px_40px_-35px_rgba(41,37,36,0.3)]"
@@ -108,21 +97,9 @@ export function DriverDashboard({
                 <p className="text-sm font-semibold uppercase tracking-[0.16em] text-emerald-700">Route timeline</p>
                 <div className="mt-5 space-y-4">
                   {[
-                    {
-                      label: "Pickup source",
-                      value: assignment.pickupSource,
-                      detail: assignment.pickupWindow,
-                    },
-                    {
-                      label: "Material loaded",
-                      value: assignment.material,
-                      detail: assignment.notes,
-                    },
-                    {
-                      label: "Drop-off destination",
-                      value: assignment.destination,
-                      detail: `Current status: ${assignment.status}`,
-                    },
+                    { label: "Pickup source", value: assignment.pickupSource, detail: assignment.pickupWindow },
+                    { label: "Material loaded", value: assignment.material, detail: assignment.notes },
+                    { label: "Drop-off destination", value: assignment.destination, detail: `Current status: ${assignment.status}` },
                   ].map((item, index, items) => (
                     <div key={item.label} className="flex gap-4">
                       <div className="flex flex-col items-center">
@@ -153,9 +130,7 @@ export function DriverDashboard({
                       className="mt-2 w-full rounded-2xl border border-stone-200 bg-white px-4 py-3 text-sm outline-none focus:border-emerald-400"
                     >
                       {statusOptions.map((status) => (
-                        <option key={status} value={status}>
-                          {status}
-                        </option>
+                        <option key={status} value={status}>{status}</option>
                       ))}
                     </select>
                   </label>
