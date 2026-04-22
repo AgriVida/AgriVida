@@ -53,6 +53,8 @@ async function insertRoute(hubId: string, published = false) {
     .insert({
       title: `Route ${TEST_TAG}`,
       hub_id: hubId,
+      start_address: "400 Marquette Ave NW, Albuquerque, NM 87102",
+      end_address: "63 Lincoln Ave, Santa Fe, NM 87501",
       start_lat: ABQ_LAT, start_lng: ABQ_LNG,
       end_lat: ABQ_LAT + 0.01, end_lng: ABQ_LNG + 0.01,
       start_time: "2026-06-01T09:00:00Z",
@@ -103,6 +105,7 @@ async function callPatch(routeId: string, body: unknown) {
 afterAll(async () => {
   await supabase.from("notification_log").delete().in("route_id", createdRouteIds.length ? createdRouteIds : ["__none__"]);
   await supabase.from("route_responses").delete().in("route_id", createdRouteIds.length ? createdRouteIds : ["__none__"]);
+  await supabase.from("route_stops").delete().in("route_id", createdRouteIds.length ? createdRouteIds : ["__none__"]);
   await supabase.from("route_assignments").delete().in("route_id", createdRouteIds.length ? createdRouteIds : ["__none__"]);
   await supabase.from("routes").delete().in("id", createdRouteIds.length ? createdRouteIds : ["__none__"]);
   await supabase.from("farmers").delete().in("id", createdFarmerIds.length ? createdFarmerIds : ["__none__"]);
