@@ -70,10 +70,12 @@ export async function POST(request: Request) {
     ? body.stops.filter((s: unknown) => typeof s === "object" && s !== null && typeof (s as Record<string, unknown>).address === "string")
     : [];
 
+  const supabase = createAdminSupabaseClient();
+
   // Geocode addresses
   let startLatLng: { lat: number; lng: number };
   try {
-    startLatLng = await geocodeAddress(startAddress);
+    startLatLng = await geocodeAddress(startAddress, supabase);
   } catch (err) {
     if (err instanceof GeocodeError) {
       return NextResponse.json({ field: "start_address", message: err.message }, { status: 422 });
@@ -83,7 +85,7 @@ export async function POST(request: Request) {
 
   let endLatLng: { lat: number; lng: number };
   try {
-    endLatLng = await geocodeAddress(endAddress);
+    endLatLng = await geocodeAddress(endAddress, supabase);
   } catch (err) {
     if (err instanceof GeocodeError) {
       return NextResponse.json({ field: "end_address", message: err.message }, { status: 422 });
@@ -94,7 +96,7 @@ export async function POST(request: Request) {
   const stopLatLngs: Array<{ lat: number; lng: number }> = [];
   for (let i = 0; i < stops.length; i++) {
     try {
-      stopLatLngs.push(await geocodeAddress(stops[i].address));
+      stopLatLngs.push(await geocodeAddress(stops[i].address, supabase));
     } catch (err) {
       if (err instanceof GeocodeError) {
         return NextResponse.json({ field: `stops[${i}].address`, message: err.message }, { status: 422 });
@@ -114,7 +116,6 @@ export async function POST(request: Request) {
     throw err;
   }
 
-  const supabase = createAdminSupabaseClient();
   const { data, error } = await supabase
     .from("routes")
     .insert({

@@ -101,7 +101,7 @@ export async function PATCH(request: Request, context: RouteContext) {
     const addr = asString(body.start_address);
     if (!addr) return NextResponse.json({ error: "start_address must be a non-empty string." }, { status: 400 });
     try {
-      const ll = await geocodeAddress(addr);
+      const ll = await geocodeAddress(addr, supabase);
       updates.start_address = addr;
       updates.start_lat = ll.lat;
       updates.start_lng = ll.lng;
@@ -117,7 +117,7 @@ export async function PATCH(request: Request, context: RouteContext) {
     const addr = asString(body.end_address);
     if (!addr) return NextResponse.json({ error: "end_address must be a non-empty string." }, { status: 400 });
     try {
-      const ll = await geocodeAddress(addr);
+      const ll = await geocodeAddress(addr, supabase);
       updates.end_address = addr;
       updates.end_lat = ll.lat;
       updates.end_lng = ll.lng;
@@ -131,7 +131,7 @@ export async function PATCH(request: Request, context: RouteContext) {
 
   for (let i = 0; i < stops.length; i++) {
     try {
-      stopLatLngs.push(await geocodeAddress(stops[i].address));
+      stopLatLngs.push(await geocodeAddress(stops[i].address, supabase));
     } catch (err) {
       if (err instanceof GeocodeError) {
         return NextResponse.json({ field: `stops[${i}].address`, message: err.message }, { status: 422 });

@@ -100,59 +100,81 @@ describe("POST /api/routes — address-based", () => {
 
   it("rejects with 422 when start_address geocode fails", async () => {
     const { vi } = await import("vitest");
-    const spy = vi.spyOn(globalThis, "fetch").mockImplementationOnce(async () =>
-      new Response(JSON.stringify({ status: "ZERO_RESULTS", results: [] }), {
-        status: 200,
-        headers: { "content-type": "application/json" },
-      }),
-    );
-    const res = await callPost({
-      hub_id: hub.id,
-      driver_id: SEED_DRIVER_ID,
-      title: `Bad Address ${TEST_TAG}`,
-      start_address: "Totally Fake Street That Does Not Exist, ZZ 99999",
-      end_address: "63 Lincoln Ave, Santa Fe, NM 87501",
-      stops: [],
-      start_time: "2026-07-01T09:00:00Z",
-      end_time: "2026-07-01T17:00:00Z",
-    });
-    spy.mockRestore();
-    expect(res.status).toBe(422);
-    const json = await res.json();
-    expect(json.field).toBe("start_address");
-    expect(typeof json.message).toBe("string");
-  });
-
-  it("rejects with 422 when a stop address geocode fails, identifying the index", async () => {
-    const { vi } = await import("vitest");
-    let callCount = 0;
-    const spy = vi.spyOn(globalThis, "fetch").mockImplementation(async () => {
-      callCount += 1;
-      if (callCount === 3) {
+    const prevFetch = globalThis.fetch;
+    vi.stubGlobal("fetch", async (input: RequestInfo | URL, init?: RequestInit) => {
+      const url = typeof input === "string" ? input : input instanceof URL ? input.href : input.url;
+      if (typeof url === "string" && url.includes("maps.googleapis.com")) {
         return new Response(JSON.stringify({ status: "ZERO_RESULTS", results: [] }), {
           status: 200,
           headers: { "content-type": "application/json" },
         });
       }
-      return new Response(
-        JSON.stringify({ status: "OK", results: [{ geometry: { location: { lat: 35.08, lng: -106.65 } } }] }),
-        { status: 200, headers: { "content-type": "application/json" } },
-      );
+      return prevFetch(input, init);
     });
-    const res = await callPost({
-      hub_id: hub.id,
-      driver_id: SEED_DRIVER_ID,
-      title: `Bad Stop ${TEST_TAG}`,
-      start_address: "400 Marquette Ave NW, Albuquerque, NM 87102",
-      end_address: "63 Lincoln Ave, Santa Fe, NM 87501",
-      stops: [{ address: "Nonexistent Place 00000" }],
-      start_time: "2026-07-01T09:00:00Z",
-      end_time: "2026-07-01T17:00:00Z",
+    try {
+      const res = await callPost({
+        hub_id: hub.id,
+        driver_id: SEED_DRIVER_ID,
+        title: `Bad Address ${TEST_TAG}`,
+        start_address: "Totally Fake Street That Does Not Exist, ZZ 99999",
+        end_address: "63 Lincoln Ave, Santa Fe, NM 87501",
+        stops: [],
+        start_time: "2026-07-01T09:00:00Z",
+        end_time: "2026-07-01T17:00:00Z",
+      });
+      expect(res.status).toBe(422);
+      const json = await res.json();
+      expect(json.field).toBe("start_address");
+      expect(typeof json.message).toBe("string");
+    } finally {
+      vi.stubGlobal("fetch", prevFetch);
+    }
+  });
+
+  it("rejects with 422 when a stop address geocode fails, identifying the index", async () => {
+    const { vi } = await import("vitest");
+    const prevFetch = globalThis.fetch;
+    vi.stubGlobal("fetch", async (input: RequestInfo | URL, init?: RequestInit) => {
+      const url = typeof input === "string" ? input : input instanceof URL ? input.href : input.url;
+      if (typeof url === "string" && url.includes("maps.googleapis.com")) {
+        if (url.includes("/geocode/") && url.includes(encodeURIComponent("Nonexistent Place 00000"))) {
+          return new Response(JSON.stringify({ status: "ZERO_RESULTS", results: [] }), {
+            status: 200,
+            headers: { "content-type": "application/json" },
+          });
+        }
+        if (url.includes("/geocode/")) {
+          return new Response(
+            JSON.stringify({ status: "OK", results: [{ geometry: { location: { lat: 35.08, lng: -106.65 } } }] }),
+            { status: 200, headers: { "content-type": "application/json" } },
+          );
+        }
+        if (url.includes("/directions/")) {
+          return new Response(
+            JSON.stringify({ status: "OK", routes: [{ overview_polyline: { points: "mock_polyline" } }] }),
+            { status: 200, headers: { "content-type": "application/json" } },
+          );
+        }
+      }
+      return prevFetch(input, init);
     });
-    spy.mockRestore();
-    expect(res.status).toBe(422);
-    const json = await res.json();
-    expect(json.field).toBe("stops[0].address");
+    try {
+      const res = await callPost({
+        hub_id: hub.id,
+        driver_id: SEED_DRIVER_ID,
+        title: `Bad Stop ${TEST_TAG}`,
+        start_address: "400 Marquette Ave NW, Albuquerque, NM 87102",
+        end_address: "63 Lincoln Ave, Santa Fe, NM 87501",
+        stops: [{ address: "Nonexistent Place 00000" }],
+        start_time: "2026-07-01T09:00:00Z",
+        end_time: "2026-07-01T17:00:00Z",
+      });
+      expect(res.status).toBe(422);
+      const json = await res.json();
+      expect(json.field).toBe("stops[0].address");
+    } finally {
+      vi.stubGlobal("fetch", prevFetch);
+    }
   });
 
   it("rejects missing required fields with 400", async () => {

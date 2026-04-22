@@ -119,6 +119,27 @@ export type Database = {
         }
         Relationships: []
       }
+      geocode_cache: {
+        Row: {
+          address: string
+          created_at: string
+          lat: number
+          lng: number
+        }
+        Insert: {
+          address: string
+          created_at?: string
+          lat: number
+          lng: number
+        }
+        Update: {
+          address?: string
+          created_at?: string
+          lat?: number
+          lng?: number
+        }
+        Relationships: []
+      }
       hubs: {
         Row: {
           created_at: string
