@@ -158,3 +158,29 @@ export async function PATCH(request: Request, context: RouteContext) {
 
   return NextResponse.json({ route: updated, ...(rebroadcast ? { rebroadcast } : {}) });
 }
+
+export async function DELETE(_request: Request, context: RouteContext) {
+  const { id } = await context.params;
+  if (!id) {
+    return NextResponse.json({ error: "Route id is required." }, { status: 400 });
+  }
+
+  const supabase = createAdminSupabaseClient();
+
+  const { data: existing } = await supabase.from("routes").select("id").eq("id", id).single();
+  if (!existing) {
+    return NextResponse.json({ error: "Route not found." }, { status: 404 });
+  }
+
+  // Manually delete child rows that use ON DELETE RESTRICT before deleting the route.
+  await supabase.from("notification_log").delete().eq("route_id", id);
+  await supabase.from("route_responses").delete().eq("route_id", id);
+  // route_assignments uses ON DELETE CASCADE and will be cleaned up automatically.
+
+  const { error } = await supabase.from("routes").delete().eq("id", id);
+  if (error) {
+    return NextResponse.json({ error: error.message }, { status: 500 });
+  }
+
+  return new NextResponse(null, { status: 204 });
+}
