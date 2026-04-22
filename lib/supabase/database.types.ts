@@ -1,3 +1,4 @@
+Initialising login role...
 export type Json =
   | string
   | number
@@ -281,19 +282,63 @@ export type Database = {
           },
         ]
       }
+      route_stops: {
+        Row: {
+          address: string
+          created_at: string
+          id: string
+          latitude: number
+          longitude: number
+          name: string | null
+          order_index: number
+          route_id: string
+          updated_at: string
+        }
+        Insert: {
+          address: string
+          created_at?: string
+          id?: string
+          latitude: number
+          longitude: number
+          name?: string | null
+          order_index: number
+          route_id: string
+          updated_at?: string
+        }
+        Update: {
+          address?: string
+          created_at?: string
+          id?: string
+          latitude?: number
+          longitude?: number
+          name?: string | null
+          order_index?: number
+          route_id?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "route_stops_route_id_fkey"
+            columns: ["route_id"]
+            isOneToOne: false
+            referencedRelation: "routes"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       routes: {
         Row: {
           created_at: string
+          end_address: string
           end_lat: number
           end_lng: number
           end_time: string
           hub_id: string
-          start_address: string
-          end_address: string
           id: string
           notes: string | null
           published: boolean
           route_polyline: string
+          start_address: string
           start_lat: number
           start_lng: number
           start_time: string
@@ -301,16 +346,16 @@ export type Database = {
         }
         Insert: {
           created_at?: string
+          end_address?: string
           end_lat: number
           end_lng: number
           end_time: string
           hub_id: string
-          start_address: string
-          end_address: string
           id?: string
           notes?: string | null
           published?: boolean
           route_polyline?: string
+          start_address?: string
           start_lat: number
           start_lng: number
           start_time: string
@@ -318,16 +363,16 @@ export type Database = {
         }
         Update: {
           created_at?: string
+          end_address?: string
           end_lat?: number
           end_lng?: number
           end_time?: string
           hub_id?: string
-          start_address?: string
-          end_address?: string
           id?: string
           notes?: string | null
           published?: boolean
           route_polyline?: string
+          start_address?: string
           start_lat?: number
           start_lng?: number
           start_time?: string
@@ -339,50 +384,6 @@ export type Database = {
             columns: ["hub_id"]
             isOneToOne: false
             referencedRelation: "hubs"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
-      route_stops: {
-        Row: {
-          id: string
-          route_id: string
-          order_index: number
-          address: string
-          name: string | null
-          latitude: number
-          longitude: number
-          created_at: string
-          updated_at: string
-        }
-        Insert: {
-          id?: string
-          route_id: string
-          order_index: number
-          address: string
-          name?: string | null
-          latitude: number
-          longitude: number
-          created_at?: string
-          updated_at?: string
-        }
-        Update: {
-          id?: string
-          route_id?: string
-          order_index?: number
-          address?: string
-          name?: string | null
-          latitude?: number
-          longitude?: number
-          created_at?: string
-          updated_at?: string
-        }
-        Relationships: [
-          {
-            foreignKeyName: "route_stops_route_id_fkey"
-            columns: ["route_id"]
-            isOneToOne: false
-            referencedRelation: "routes"
             referencedColumns: ["id"]
           },
         ]

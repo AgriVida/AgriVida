@@ -18,7 +18,7 @@ WHERE start_address = '';
 
 -- 3. route_stops table
 CREATE TABLE IF NOT EXISTS route_stops (
-  id           uuid        NOT NULL DEFAULT uuid_generate_v4() PRIMARY KEY,
+  id           uuid        NOT NULL DEFAULT gen_random_uuid() PRIMARY KEY,
   route_id     uuid        NOT NULL REFERENCES routes(id) ON DELETE CASCADE,
   order_index  int         NOT NULL,
   address      text        NOT NULL,
