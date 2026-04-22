@@ -21,6 +21,41 @@ export type FarmerOpportunity = {
   routeDate: string; pickupWindow: string; destination: string; distanceMiles: number;
 };
 
+export type RouteRow = {
+  id: string;
+  hub_id: string;
+  title: string;
+  start_lat: number;
+  start_lng: number;
+  end_lat: number;
+  end_lng: number;
+  route_polyline: string;
+  start_time: string;
+  end_time: string;
+  notes: string | null;
+  published: boolean;
+  created_at: string;
+  hubs?: { id: string; name: string; phone: string; email: string } | null;
+};
+
+export type RouteUpdatePayload = Partial<{
+  title: string;
+  driver_id: string;
+  start_lat: number;
+  start_lng: number;
+  end_lat: number;
+  end_lng: number;
+  route_polyline: string;
+  start_time: string;
+  end_time: string;
+  notes: string | null;
+}>;
+
+export type RebroadcastResult = {
+  farmers_notified: number;
+  notifications: Array<{ farmer_id: string; status: "sent" | "failed" }>;
+};
+
 export const api = {
   listHubs: () => http<HubSummary[]>("/api/hubs"),
   hubStats: (hubId: string) => http<HubStats>(`/api/hubs/${hubId}/stats`),
@@ -42,12 +77,22 @@ export const api = {
   listNotifications: (farmerId: string) =>
     http<FarmerNotification[]>(`/api/farmers/${farmerId}/notifications`),
   listRoutes: (hubId?: string) =>
-    http<Array<Record<string, unknown>>>(hubId ? `/api/routes?hub_id=${hubId}` : "/api/routes"),
+    http<RouteRow[]>(hubId ? `/api/routes?hub_id=${hubId}` : "/api/routes"),
   createRoute: (payload: Record<string, unknown>) =>
-    http<Record<string, unknown> & { id: string }>("/api/routes", {
+    http<RouteRow>("/api/routes", {
       method: "POST",
       headers: { "content-type": "application/json" },
       body: JSON.stringify(payload),
+    }),
+  updateRoute: (routeId: string, payload: RouteUpdatePayload) =>
+    http<{ route: RouteRow; rebroadcast?: RebroadcastResult }>(`/api/routes/${routeId}`, {
+      method: "PATCH",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify(payload),
+    }),
+  deleteRoute: (routeId: string) =>
+    fetch(`/api/routes/${routeId}`, { method: "DELETE" }).then((r) => {
+      if (!r.ok && r.status !== 204) throw new Error(`Delete failed (${r.status})`);
     }),
   publishRoute: (routeId: string) =>
     http<{ farmers_notified: number; notifications: Array<{ status: string }> }>(
