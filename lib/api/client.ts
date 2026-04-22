@@ -49,7 +49,7 @@ export type RouteRow = {
   published: boolean;
   created_at: string;
   hubs?: { id: string; name: string; phone: string; email: string } | null;
-  stops: RouteStop[];
+  route_stops: RouteStop[];
 };
 
 export type RouteStop_Input = { address: string; name?: string | null };

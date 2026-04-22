@@ -58,7 +58,7 @@ function stateFromRoute(r: RouteRow, driverId: string): FormState {
     end_time: toLocalInput(r.end_time),
     start_address: r.start_address,
     end_address: r.end_address,
-    stops: (r.stops ?? []).map((s) => ({ address: s.address, name: s.name ?? "" })),
+    stops: (r.route_stops ?? []).map((s) => ({ address: s.address, name: s.name ?? "" })),
     notes: r.notes ?? "",
   };
 }

@@ -1,6 +1,6 @@
 "use client";
 import { useEffect, useMemo, useRef } from "react";
-import { APIProvider, Map, Marker, useMap } from "@vis.gl/react-google-maps";
+import { APIProvider, Map, Marker, useApiIsLoaded, useMap } from "@vis.gl/react-google-maps";
 import type { RouteRow } from "@/lib/api/client";
 import { routeColor } from "@/lib/routes/route-color";
 
@@ -53,7 +53,14 @@ function SelectedOverlay({ route }: { route: RouteRow }) {
     bounds.extend({ lat: route.end_lat, lng: route.end_lng });
     for (const p of points) bounds.extend(p);
     map.fitBounds(bounds, 80);
-    return () => { polylineRef.current?.setMap(null); };
+    const listener = google.maps.event.addListenerOnce(map, "idle", () => {
+      const z = map.getZoom();
+      if (typeof z === "number" && z > 12) map.setZoom(12);
+    });
+    return () => {
+      polylineRef.current?.setMap(null);
+      google.maps.event.removeListener(listener);
+    };
   }, [map, points, route.id, route.start_lat, route.start_lng, route.end_lat, route.end_lng]);
 
   return (
@@ -75,6 +82,30 @@ function AllPinsFit({ routes, selectedId }: { routes: RouteRow[]; selectedId: st
   return null;
 }
 
+function RoutePins({ routes, selectedId, onSelect }: Props) {
+  const apiLoaded = useApiIsLoaded();
+  if (!apiLoaded) return null;
+  return (
+    <>
+      {routes.map((route) => (
+        <Marker
+          key={route.id}
+          position={{ lat: route.start_lat, lng: route.start_lng }}
+          onClick={() => onSelect(route.id)}
+          icon={{
+            path: google.maps.SymbolPath.CIRCLE,
+            fillColor: routeColor(route.id),
+            fillOpacity: route.id === selectedId ? 1 : 0.85,
+            strokeColor: "#ffffff",
+            strokeWeight: 2,
+            scale: route.id === selectedId ? 11 : 8,
+          }}
+        />
+      ))}
+    </>
+  );
+}
+
 export function RouteMap({ routes, selectedId, onSelect }: Props) {
   const apiKey = process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY ?? "";
   const selected = routes.find((r) => r.id === selectedId) ?? null;
@@ -89,21 +120,7 @@ export function RouteMap({ routes, selectedId, onSelect }: Props) {
           gestureHandling="greedy"
           disableDefaultUI={false}
         >
-          {routes.map((route) => (
-            <Marker
-              key={route.id}
-              position={{ lat: route.start_lat, lng: route.start_lng }}
-              onClick={() => onSelect(route.id)}
-              icon={{
-                path: google.maps.SymbolPath.CIRCLE,
-                fillColor: routeColor(route.id),
-                fillOpacity: route.id === selectedId ? 1 : 0.85,
-                strokeColor: "#ffffff",
-                strokeWeight: 2,
-                scale: route.id === selectedId ? 11 : 8,
-              }}
-            />
-          ))}
+          <RoutePins routes={routes} selectedId={selectedId} onSelect={onSelect} />
           {selected && <SelectedOverlay route={selected} />}
           <AllPinsFit routes={routes} selectedId={selectedId} />
         </Map>
