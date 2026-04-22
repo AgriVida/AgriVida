@@ -3,6 +3,13 @@ import { useEffect, useMemo, useState } from "react";
 import type { RouteRow, RouteUpdatePayload, RouteCreatePayload, RebroadcastResult } from "@/lib/api/client";
 import type { DriverSummary } from "@/lib/api/client";
 
+const LETTERS = "ABCDEFGHIJKLMNOPQRSTUVWXYZ";
+
+function getLabel(index: number): string {
+  if (index < LETTERS.length) return LETTERS[index];
+  return String(index + 1);
+}
+
 export type EditorSubmit =
   | { mode: "update"; id: string; payload: RouteUpdatePayload }
   | { mode: "create"; payload: RouteCreatePayload };
@@ -142,6 +149,8 @@ export function RouteEditor(props: Props) {
   const set = <K extends keyof FormState>(k: K) => (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) =>
     setForm((s) => ({ ...s, [k]: e.target.value }));
 
+  const destLabel = getLabel(form.stops.length + 1);
+
   return (
     <aside className="flex h-full w-[340px] flex-shrink-0 flex-col overflow-y-auto border-l border-stone-200 bg-white p-5">
       <header className="mb-4 flex items-center justify-between">
@@ -188,7 +197,10 @@ export function RouteEditor(props: Props) {
       </div>
 
       <label className="mb-3 block text-xs font-semibold uppercase tracking-wide text-stone-600">
-        Origin address
+        <span className="flex items-center gap-1.5">
+          <span className="inline-flex h-5 w-5 items-center justify-center rounded-full bg-amber-600 text-[10px] font-bold text-white">A</span>
+          Origin address
+        </span>
         <input className="mt-1 w-full rounded border border-stone-300 px-3 py-2 text-sm"
                value={form.start_address} onChange={set("start_address")}
                placeholder="123 Main St, City, State" />
@@ -198,7 +210,10 @@ export function RouteEditor(props: Props) {
       </label>
 
       <label className="mb-3 block text-xs font-semibold uppercase tracking-wide text-stone-600">
-        Destination address
+        <span className="flex items-center gap-1.5">
+          <span className="inline-flex h-5 w-5 items-center justify-center rounded-full bg-amber-600 text-[10px] font-bold text-white">{destLabel}</span>
+          Destination address
+        </span>
         <input className="mt-1 w-full rounded border border-stone-300 px-3 py-2 text-sm"
                value={form.end_address} onChange={set("end_address")}
                placeholder="456 Oak Ave, City, State" />
@@ -215,31 +230,35 @@ export function RouteEditor(props: Props) {
             + Add stop
           </button>
         </div>
-        {form.stops.map((stop, i) => (
-          <div key={i} className="mb-2 flex gap-1 items-start">
-            <div className="flex flex-col gap-0.5">
-              <button type="button" disabled={i === 0} onClick={() => moveStopUp(i)}
-                      className="rounded border px-1 text-xs disabled:opacity-30">↑</button>
-              <button type="button" disabled={i === form.stops.length - 1} onClick={() => moveStopDown(i)}
-                      className="rounded border px-1 text-xs disabled:opacity-30">↓</button>
+        {form.stops.map((stop, i) => {
+          const label = getLabel(i + 1);
+          return (
+            <div key={i} className="mb-2 flex gap-1 items-start">
+              <div className="flex flex-col items-center gap-0.5">
+                <span className="inline-flex h-5 w-5 items-center justify-center rounded-full bg-amber-600 text-[10px] font-bold text-white">{label}</span>
+                <button type="button" disabled={i === 0} onClick={() => moveStopUp(i)}
+                        className="rounded border px-1 text-xs disabled:opacity-30">↑</button>
+                <button type="button" disabled={i === form.stops.length - 1} onClick={() => moveStopDown(i)}
+                        className="rounded border px-1 text-xs disabled:opacity-30">↓</button>
+              </div>
+              <div className="flex-1 space-y-1">
+                <input className="w-full rounded border border-stone-300 px-2 py-1 text-sm"
+                       placeholder="Stop address"
+                       value={stop.address}
+                       onChange={(e) => updateStop(i, "address", e.target.value)} />
+                <input className="w-full rounded border border-stone-300 px-2 py-1 text-sm"
+                       placeholder="Stop name (optional)"
+                       value={stop.name}
+                       onChange={(e) => updateStop(i, "name", e.target.value)} />
+                {fieldError?.field === `stops[${i}].address` && (
+                  <span className="block text-xs text-red-600">{fieldError.message}</span>
+                )}
+              </div>
+              <button type="button" onClick={() => removeStop(i)}
+                      className="mt-1 rounded border border-red-200 px-1.5 py-0.5 text-xs text-red-600">×</button>
             </div>
-            <div className="flex-1 space-y-1">
-              <input className="w-full rounded border border-stone-300 px-2 py-1 text-sm"
-                     placeholder="Stop address"
-                     value={stop.address}
-                     onChange={(e) => updateStop(i, "address", e.target.value)} />
-              <input className="w-full rounded border border-stone-300 px-2 py-1 text-sm"
-                     placeholder="Stop name (optional)"
-                     value={stop.name}
-                     onChange={(e) => updateStop(i, "name", e.target.value)} />
-              {fieldError?.field === `stops[${i}].address` && (
-                <span className="block text-xs text-red-600">{fieldError.message}</span>
-              )}
-            </div>
-            <button type="button" onClick={() => removeStop(i)}
-                    className="mt-1 rounded border border-red-200 px-1.5 py-0.5 text-xs text-red-600">×</button>
-          </div>
-        ))}
+          );
+        })}
       </div>
 
       <label className="mb-3 block text-xs font-semibold uppercase tracking-wide text-stone-600">

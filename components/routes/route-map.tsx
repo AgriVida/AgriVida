@@ -27,6 +27,8 @@ function decodePolyline(encoded: string): Array<{ lat: number; lng: number }> {
   return points;
 }
 
+const LETTERS = "ABCDEFGHIJKLMNOPQRSTUVWXYZ";
+
 function SelectedOverlay({ route }: { route: RouteRow }) {
   const map = useMap();
   const polylineRef = useRef<google.maps.Polyline | null>(null);
@@ -34,6 +36,25 @@ function SelectedOverlay({ route }: { route: RouteRow }) {
   const points = useMemo(() => {
     try { return decodePolyline(route.route_polyline); } catch { return []; }
   }, [route.route_polyline]);
+
+  const markers = useMemo(() => {
+    const result: Array<{ lat: number; lng: number; label: string }> = [];
+
+    result.push({ lat: route.start_lat, lng: route.start_lng, label: "A" });
+
+    const stops = route.route_stops ?? [];
+    for (let i = 0; i < stops.length; i++) {
+      const letter = LETTERS[i + 1];
+      if (letter) {
+        result.push({ lat: stops[i].latitude, lng: stops[i].longitude, label: letter });
+      }
+    }
+
+    const lastLetter = LETTERS[stops.length + 1];
+    result.push({ lat: route.end_lat, lng: route.end_lng, label: lastLetter });
+
+    return result;
+  }, [route.start_lat, route.start_lng, route.route_stops, route.end_lat, route.end_lng]);
 
   useEffect(() => {
     if (!map) return;
@@ -65,7 +86,13 @@ function SelectedOverlay({ route }: { route: RouteRow }) {
 
   return (
     <>
-      <Marker position={{ lat: route.end_lat, lng: route.end_lng }} label="D" />
+      {markers.map((m) => (
+        <Marker
+          key={m.label}
+          position={{ lat: m.lat, lng: m.lng }}
+          label={m.label}
+        />
+      ))}
     </>
   );
 }
