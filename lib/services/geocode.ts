@@ -28,10 +28,10 @@ export async function geocodeAddress(
     return { lat: cached.lat, lng: cached.lng };
   }
 
-  const apiKey =
-    process.env.GOOGLE_MAPS_SERVER_KEY ??
-    process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY ??
-    "";
+  const apiKey = process.env.GOOGLE_MAPS_SERVER_KEY;
+  if (!apiKey) {
+    throw new GeocodeError(address, "GOOGLE_MAPS_SERVER_KEY is not set");
+  }
 
   const url = `https://maps.googleapis.com/maps/api/geocode/json?address=${encodeURIComponent(address)}&key=${apiKey}`;
 

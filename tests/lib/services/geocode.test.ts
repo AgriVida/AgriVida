@@ -65,16 +65,6 @@ describe("geocodeAddress", () => {
     await expect(geocodeAddress("Test", mockSupabase as unknown as Parameters<typeof geocodeAddress>[1])).rejects.toBeInstanceOf(GeocodeError);
   });
 
-  it("falls back to NEXT_PUBLIC_GOOGLE_MAPS_API_KEY when server key is absent", async () => {
-    const mockSupabase = createMockSupabase(null);
-    delete process.env.GOOGLE_MAPS_SERVER_KEY;
-    process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY = "public-fallback-key";
-    mockFetch.mockReturnValue(makeResponse(OK_RESPONSE));
-    await geocodeAddress("Test", mockSupabase as unknown as Parameters<typeof geocodeAddress>[1]);
-    const url: string = mockFetch.mock.calls[0][0];
-    expect(url).toContain("public-fallback-key");
-  });
-
   describe("cache", () => {
     it("returns cached result without calling fetch on cache hit", async () => {
       const mockSupabase = createMockSupabase({ lat: 35.0, lng: -106.0 });

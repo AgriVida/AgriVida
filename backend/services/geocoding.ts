@@ -9,9 +9,9 @@ export interface GeocodingResult {
  * Throws on API errors or zero results.
  */
 export async function geocodeAddress(address: string): Promise<GeocodingResult> {
-  const apiKey = process.env.GOOGLE_MAPS_API_KEY
+  const apiKey = process.env.GOOGLE_MAPS_SERVER_KEY
   if (!apiKey) {
-    throw new Error("GOOGLE_MAPS_API_KEY is not set")
+    throw new Error("GOOGLE_MAPS_SERVER_KEY is not set")
   }
 
   console.log(`[geocoding] Geocoding: "${address}"`)

@@ -23,10 +23,10 @@ export async function autocompletePlaces(
     return cached.results as AutocompletePrediction[];
   }
 
-  const apiKey =
-    process.env.GOOGLE_MAPS_SERVER_KEY ??
-    process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY ??
-    "";
+  const apiKey = process.env.GOOGLE_MAPS_SERVER_KEY;
+  if (!apiKey) {
+    throw new Error("GOOGLE_MAPS_SERVER_KEY is not set");
+  }
 
   const url = `https://maps.googleapis.com/maps/api/place/autocomplete/json?input=${encodeURIComponent(normalized)}&types=geocode&components=country:us&key=${apiKey}`;
 

@@ -20,10 +20,10 @@ export async function getDirectionsPolyline(
   destination: LatLng,
   waypoints: LatLng[],
 ): Promise<string> {
-  const apiKey =
-    process.env.GOOGLE_MAPS_SERVER_KEY ??
-    process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY ??
-    "";
+  const apiKey = process.env.GOOGLE_MAPS_SERVER_KEY;
+  if (!apiKey) {
+    throw new Error("GOOGLE_MAPS_SERVER_KEY is not set");
+  }
 
   const body = {
     origin: waypoint(origin),
