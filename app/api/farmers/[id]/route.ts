@@ -53,7 +53,14 @@ export async function PATCH(request: Request, context: Ctx) {
     }
   }
 
-  const update: Record<string, unknown> = {};
+  const update: {
+    name?: string;
+    phone?: string;
+    address_text?: string;
+    latitude?: number;
+    longitude?: number;
+    opted_out?: boolean;
+  } = {};
   if (name !== undefined) update.name = name;
   if (phone !== undefined) update.phone = phone;
   if (addressText !== undefined) {
