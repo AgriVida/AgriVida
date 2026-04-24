@@ -4,6 +4,30 @@ import { geocodeAddress } from "@backend/services/geocoding";
 import { asBoolean, asNumber, asString, isLatitude, isLongitude, isRecord } from "@/lib/api/validation";
 import { createAdminSupabaseClient } from "@/lib/supabase/server";
 
+export async function GET(request: Request) {
+  const url = new URL(request.url);
+  const search = url.searchParams.get("search")?.trim() || "";
+
+  const supabase = createAdminSupabaseClient();
+
+  let query = supabase
+    .from("farmers")
+    .select("id, name, phone, address_text, opted_out, created_at")
+    .order("created_at", { ascending: false });
+
+  if (search) {
+    query = query.or(`name.ilike.%${search}%,phone.ilike.%${search}%`);
+  }
+
+  const { data, error } = await query;
+
+  if (error) {
+    return NextResponse.json({ error: error.message }, { status: 500 });
+  }
+
+  return NextResponse.json(data);
+}
+
 export async function POST(request: Request) {
   const body = await request.json().catch(() => null);
 
