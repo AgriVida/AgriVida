@@ -3,7 +3,7 @@ import { NextResponse } from "next/server";
 import { asString, isRecord } from "@/lib/api/validation";
 import { createAdminSupabaseClient } from "@/lib/supabase/server";
 
-const VALID_RESPONSE_TYPES = new Set(["crop_pickup", "compost_pickup", "both"]);
+const VALID_RESPONSE_TYPES = new Set(["crop_pickup", "compost_pickup", "both", "decline"]);
 const VALID_STATUSES = new Set(["pending", "confirmed", "cancelled"]);
 
 export async function POST(request: Request) {
@@ -41,7 +41,7 @@ export async function POST(request: Request) {
       {
         farmer_id: farmerId,
         notes: notes || null,
-        response_type: responseType as "crop_pickup" | "compost_pickup" | "both",
+        response_type: responseType as "crop_pickup" | "compost_pickup" | "both" | "decline",
         route_id: routeId,
         status: status as "pending" | "confirmed" | "cancelled",
       },
