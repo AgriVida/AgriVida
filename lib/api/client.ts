@@ -109,12 +109,28 @@ export type FarmerDetail = FarmerSummary & {
   updated_at: string;
 };
 
+export type ResponseType = "crop_pickup" | "compost_pickup" | "both" | "decline";
+export type ResponseStatus = "pending" | "confirmed" | "cancelled";
+
 export type FarmerResponseItem = {
   id: string;
   route_id: string;
   route_title: string;
-  response_type: "crop_pickup" | "compost_pickup" | "both";
-  status: "pending" | "confirmed" | "cancelled";
+  response_type: ResponseType;
+  status: ResponseStatus;
+  notes: string | null;
+  created_at: string;
+};
+
+export type RouteResponseRow = {
+  id: string;
+  route_id: string;
+  farmer_id: string;
+  farmer_name: string;
+  phone: string;
+  address_text: string;
+  response_type: ResponseType;
+  status: ResponseStatus;
   notes: string | null;
   created_at: string;
 };
@@ -177,4 +193,7 @@ export const api = {
 
   listFarmerResponses: (farmerId: string) =>
     http<FarmerResponseItem[]>(`/api/farmers/${farmerId}/responses`),
+
+  listRouteResponses: (routeId: string) =>
+    http<RouteResponseRow[]>(`/api/routes/${routeId}/responses`),
 };
