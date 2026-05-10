@@ -2,6 +2,7 @@
 import { useEffect, useMemo, useState } from "react";
 import type { RouteRow, RouteUpdatePayload, RouteCreatePayload, RebroadcastResult, DriverSummary, NearbyFarmer } from "@/lib/api/client";
 import { AddressAutocomplete } from "@/components/ui/address-autocomplete";
+import { ResponsesModal } from "./responses-modal";
 
 const LETTERS = "ABCDEFGHIJKLMNOPQRSTUVWXYZ";
 
@@ -81,6 +82,7 @@ export function RouteEditor(props: Props) {
 
   const [form, setForm] = useState<FormState>(initial);
   const [nearbyExpanded, setNearbyExpanded] = useState(false);
+  const [responsesOpen, setResponsesOpen] = useState(false);
 
   useEffect(() => {
     setForm(initial);
@@ -100,6 +102,7 @@ export function RouteEditor(props: Props) {
   }
 
   const submit = () => {
+    setResponsesOpen(false);
     if (mode === "create") {
       onSubmit({
         mode: "create",
@@ -330,6 +333,13 @@ export function RouteEditor(props: Props) {
           Cancel
         </button>
         <div className="flex gap-2">
+          {mode === "view" && route?.published && (
+            <button type="button"
+                    onClick={() => setResponsesOpen(true)}
+                    className="rounded border border-stone-300 bg-white px-3 py-2 text-sm font-semibold text-stone-700">
+              Responses
+            </button>
+          )}
           {mode === "view" && route && onDelete && (
             <button type="button"
                     disabled={busy}
@@ -346,6 +356,11 @@ export function RouteEditor(props: Props) {
           </button>
         </div>
       </div>
+      <ResponsesModal
+        routeId={route?.id ?? null}
+        open={responsesOpen}
+        onClose={() => setResponsesOpen(false)}
+      />
     </aside>
   );
 }
